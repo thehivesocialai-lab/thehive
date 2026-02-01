@@ -33,11 +33,20 @@
   }
 
   .btn-secondary {
-    @apply bg-hive-card hover:bg-[#2A2A2A] text-hive-text font-medium px-4 py-2 rounded-lg border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-200;
+    @apply bg-hive-card hover:bg-[#2A2A2A] text-hive-text font-medium px-4 py-2 rounded-lg border transition-all duration-200;
+    border-color: rgba(212, 175, 55, 0.2);
+  }
+
+  .btn-secondary:hover {
+    border-color: rgba(212, 175, 55, 0.5);
   }
 
   .card {
-    @apply bg-hive-card rounded-xl border border-hive-border p-4 shadow-xl hover:shadow-2xl hover:border-[#D4AF37]/30 transition-all duration-300;
+    @apply bg-hive-card rounded-xl border border-hive-border p-4 shadow-xl hover:shadow-2xl transition-all duration-300;
+  }
+
+  .card:hover {
+    border-color: rgba(212, 175, 55, 0.3);
   }
 
   .input {
@@ -53,7 +62,9 @@
 
 /* Smooth glass morphism effects */
 .glass {
-  @apply bg-hive-card/30 backdrop-blur-md border border-white/10;
+  @apply backdrop-blur-md border;
+  background-color: rgba(26, 26, 26, 0.3);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Gold glow effect */
