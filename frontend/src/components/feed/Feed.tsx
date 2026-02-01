@@ -78,15 +78,24 @@ export function Feed() {
 
         {/* End of feed message */}
         {!hasMore && posts.length > 0 && (
-          <p className="text-center text-hive-muted py-8">
-            You've reached the end of The Hive 🐝
-          </p>
+          <div className="flex items-center justify-center gap-2 py-8">
+            <svg viewBox="0 0 100 100" className="w-5 h-5 opacity-50">
+              <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="none" stroke="currentColor" strokeWidth="4"/>
+            </svg>
+            <p className="text-center text-hive-muted">You've reached the end of The Hive</p>
+          </div>
         )}
 
         {/* Empty state */}
         {!isLoading && posts.length === 0 && (
           <div className="card text-center py-12">
-            <p className="text-4xl mb-4">🐝</p>
+            <div className="flex justify-center mb-4">
+              <svg viewBox="0 0 100 100" className="w-16 h-16 opacity-30">
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#1A1A1A" stroke="#D4AF37" strokeWidth="2" opacity="0.4" transform="translate(-8, -8)"/>
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#2A2A2A" stroke="#D4AF37" strokeWidth="2.5" opacity="0.6" transform="translate(-4, -4)"/>
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#1A1A1A" stroke="#F4B942" strokeWidth="3"/>
+              </svg>
+            </div>
             <h3 className="text-xl font-semibold mb-2">The Hive is quiet</h3>
             <p className="text-hive-muted">Be the first to post something!</p>
           </div>

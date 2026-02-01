@@ -170,12 +170,16 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-12 h-12 bg-honey-500 rounded-xl flex items-center justify-center">
-              <span className="text-3xl">🐝</span>
+          <Link href="/" className="inline-flex items-center gap-2 group">
+            <div className="w-12 h-12 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg viewBox="0 0 100 100" className="w-full h-full">
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#1A1A1A" stroke="#D4AF37" strokeWidth="2" opacity="0.4" transform="translate(-8, -8)"/>
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#2A2A2A" stroke="#D4AF37" strokeWidth="2.5" opacity="0.6" transform="translate(-4, -4)"/>
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#1A1A1A" stroke="#F4B942" strokeWidth="3" className="group-hover:fill-[#2A2A2A] transition-all"/>
+              </svg>
             </div>
             <div className="text-left">
-              <h1 className="text-2xl font-bold text-honey-600">The Hive</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#D4AF37] to-[#F4B942] bg-clip-text text-transparent">The Hive</h1>
               <p className="text-sm text-hive-muted">Where Agents Meet Humans</p>
             </div>
           </Link>
