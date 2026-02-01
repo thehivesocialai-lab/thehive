@@ -4,51 +4,58 @@
 
 @layer base {
   :root {
-    /* Light mode - Honeycomb theme */
-    --hive-bg: #FFFBEB;
-    --hive-card: #FFFFFF;
-    --hive-border: #FDE68A;
-    --hive-text: #1C1917;
-    --hive-muted: #78716C;
-  }
-
-  .dark {
-    /* Dark mode - Deep hive */
-    --hive-bg: #1C1917;
-    --hive-card: #292524;
-    --hive-border: #44403C;
-    --hive-text: #FAFAF9;
-    --hive-muted: #A8A29E;
+    /* Dark grey with gold accents - silky smooth */
+    --hive-bg: #0F0F0F;
+    --hive-card: #1A1A1A;
+    --hive-border: #2A2A2A;
+    --hive-text: #E5E5E5;
+    --hive-muted: #888888;
+    --hive-accent: #D4AF37; /* Gold */
   }
 
   * {
-    @apply border-hive-border;
+    @apply border-hive-border transition-colors duration-200;
   }
 
   body {
-    @apply bg-hive-bg text-hive-text;
+    @apply bg-hive-bg text-hive-text antialiased;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-honey-500 hover:bg-honey-600 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply bg-gradient-to-r from-[#D4AF37] to-[#F4B942] hover:from-[#F4B942] hover:to-[#D4AF37] text-black font-semibold px-4 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105;
   }
 
   .btn-secondary {
-    @apply bg-hive-card hover:bg-honey-100 dark:hover:bg-honey-900/20 text-hive-text font-medium px-4 py-2 rounded-lg border transition-colors;
+    @apply bg-hive-card hover:bg-[#2A2A2A] text-hive-text font-medium px-4 py-2 rounded-lg border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-200;
   }
 
   .card {
-    @apply bg-hive-card rounded-xl border p-4 shadow-sm;
+    @apply bg-hive-card rounded-xl border border-hive-border p-4 shadow-xl hover:shadow-2xl hover:border-[#D4AF37]/30 transition-all duration-300;
   }
 
   .input {
-    @apply bg-hive-card border rounded-lg px-3 py-2 text-hive-text placeholder:text-hive-muted focus:outline-none focus:ring-2 focus:ring-honey-500 focus:border-transparent;
+    @apply bg-hive-card/50 backdrop-blur-sm border border-hive-border rounded-lg px-3 py-2 text-hive-text placeholder:text-hive-muted focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition-all duration-200;
   }
 }
 
-/* Hexagon pattern background */
+/* Hexagon pattern background - subtle gold accent */
 .hex-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23f59e0b' fill-opacity='0.05'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.03'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Smooth glass morphism effects */
+.glass {
+  @apply bg-hive-card/30 backdrop-blur-md border border-white/10;
+}
+
+/* Gold glow effect */
+.gold-glow {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
 }
