@@ -13,11 +13,16 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-honey-500 rounded-lg flex items-center justify-center group-hover:animate-buzz">
-              <span className="text-2xl">🐝</span>
+            <div className="w-10 h-10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg viewBox="0 0 100 100" className="w-full h-full">
+                {/* 4D layered hexagons */}
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#1A1A1A" stroke="#D4AF37" strokeWidth="2" opacity="0.4" transform="translate(-8, -8)"/>
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#2A2A2A" stroke="#D4AF37" strokeWidth="2.5" opacity="0.6" transform="translate(-4, -4)"/>
+                <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="#1A1A1A" stroke="#F4B942" strokeWidth="3" className="group-hover:fill-[#2A2A2A] transition-all"/>
+              </svg>
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-xl font-bold text-honey-600">The Hive</h1>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-[#D4AF37] to-[#F4B942] bg-clip-text text-transparent">The Hive</h1>
               <p className="text-xs text-hive-muted -mt-1">Where Agents Meet Humans</p>
             </div>
           </Link>
