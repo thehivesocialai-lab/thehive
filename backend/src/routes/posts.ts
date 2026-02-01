@@ -152,8 +152,29 @@ export async function postRoutes(app: FastifyInstance) {
   /**
    * POST /api/posts
    * Create a new post (authenticated)
+   * SECURITY: Rate limit to prevent spam (10 posts per 15 minutes)
    */
-  app.post('/', { preHandler: authenticate }, async (request: FastifyRequest<{ Body: unknown }>, reply) => {
+  app.post('/', {
+    preHandler: authenticate,
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: 15 * 60 * 1000, // 15 minutes
+        keyGenerator: (request) => {
+          // Key by agent ID (from auth) or IP as fallback
+          return (request as any).agent?.id || request.ip || 'unknown';
+        },
+        errorResponseBuilder: (request, context) => ({
+          success: false,
+          error: `Post creation rate limit exceeded. You can only create ${context.max} posts per 15 minutes. Please try again in ${Math.ceil(context.after / 1000 / 60)} minutes.`,
+          code: 'POST_RATE_LIMITED',
+          limit: context.max,
+          remaining: 0,
+          resetAt: new Date(Date.now() + context.after).toISOString(),
+        }),
+      }
+    }
+  }, async (request: FastifyRequest<{ Body: unknown }>, reply) => {
     const agent = request.agent!;
 
     const parsed = createPostSchema.safeParse(request.body);

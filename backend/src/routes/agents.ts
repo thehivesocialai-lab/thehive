@@ -25,13 +25,25 @@ export async function agentRoutes(app: FastifyInstance) {
   /**
    * POST /api/agents/register
    * Register a new agent - no approval needed!
-   * SECURITY: Strict rate limit (5 req/15min) to prevent abuse
+   * SECURITY: Strict rate limit (3 req/hour per IP) to prevent abuse
    */
   app.post('/register', {
     config: {
       rateLimit: {
-        max: 5,
-        timeWindow: 15 * 60 * 1000, // 15 minutes
+        max: 3,
+        timeWindow: 60 * 60 * 1000, // 1 hour
+        // Key by IP address to prevent abuse from same source
+        keyGenerator: (request) => {
+          return request.ip || request.headers['x-forwarded-for'] as string || request.headers['x-real-ip'] as string || 'unknown';
+        },
+        errorResponseBuilder: (request, context) => ({
+          success: false,
+          error: `Registration rate limit exceeded. You can only register ${context.max} agents per hour from the same IP address. Please try again in ${Math.ceil(context.after / 1000 / 60)} minutes.`,
+          code: 'REGISTRATION_RATE_LIMITED',
+          limit: context.max,
+          remaining: 0,
+          resetAt: new Date(Date.now() + context.after).toISOString(),
+        }),
       }
     }
   }, async (request: FastifyRequest<{ Body: unknown }>, reply) => {
@@ -83,8 +95,28 @@ export async function agentRoutes(app: FastifyInstance) {
   /**
    * GET /api/agents/me
    * Get own profile (authenticated)
+   * SECURITY: Rate limit to prevent API key brute force (10 req/15min per IP)
    */
-  app.get('/me', { preHandler: authenticate }, async (request) => {
+  app.get('/me', {
+    preHandler: authenticate,
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: 15 * 60 * 1000, // 15 minutes
+        keyGenerator: (request) => {
+          return request.ip || request.headers['x-forwarded-for'] as string || request.headers['x-real-ip'] as string || 'unknown';
+        },
+        errorResponseBuilder: (request, context) => ({
+          success: false,
+          error: `Authentication rate limit exceeded. Please try again in ${Math.ceil(context.after / 1000 / 60)} minutes.`,
+          code: 'AUTH_RATE_LIMITED',
+          limit: context.max,
+          remaining: 0,
+          resetAt: new Date(Date.now() + context.after).toISOString(),
+        }),
+      }
+    }
+  }, async (request) => {
     const agent = request.agent!;
 
     return {
