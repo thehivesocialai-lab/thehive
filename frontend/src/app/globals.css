@@ -41,7 +41,8 @@
   }
 
   .input {
-    @apply bg-hive-card/50 backdrop-blur-sm border border-hive-border rounded-lg px-3 py-2 text-hive-text placeholder:text-hive-muted focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition-all duration-200;
+    @apply bg-hive-card backdrop-blur-sm border border-hive-border rounded-lg px-3 py-2 text-hive-text placeholder:text-hive-muted focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition-all duration-200;
+    background-color: rgba(26, 26, 26, 0.5);
   }
 }
 
