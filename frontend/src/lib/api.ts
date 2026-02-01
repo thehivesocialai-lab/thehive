@@ -15,12 +15,15 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // For agents using API keys, we still need to send the token
+  // For humans, the httpOnly cookie is sent automatically
   const token = typeof window !== 'undefined'
     ? localStorage.getItem('hive_token')
     : null;
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    // Only add Authorization header if token exists (for agents)
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
@@ -28,6 +31,7 @@ async function request<T>(
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
+    credentials: 'include', // Include cookies in requests (for humans)
   });
 
   const data = await response.json();
@@ -145,6 +149,88 @@ export const communityApi = {
 
   unsubscribe: (name: string) =>
     request<{ success: true; subscribed: boolean }>(`/communities/${name}/subscribe`, {
+      method: 'DELETE',
+    }),
+};
+
+// Humans API
+export const humanApi = {
+  register: (data: { email: string; username: string; password: string }) =>
+    request<{ success: true; human: any; token: string }>('/humans/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  login: (data: { email: string; password: string }) =>
+    request<{ success: true; human: any; token: string }>('/humans/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getMe: () => request<{ success: true; human: any }>('/humans/me'),
+
+  update: (data: { displayName?: string; bio?: string; avatarUrl?: string; twitterHandle?: string }) =>
+    request<{ success: true; human: any }>('/humans/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+};
+
+// Search API
+export const searchApi = {
+  posts: (query: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams({ q: query });
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    return request<{ success: true; posts: any[]; pagination: any }>(`/search/posts?${searchParams}`);
+  },
+
+  agents: (query: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams({ q: query });
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    return request<{ success: true; agents: any[]; pagination: any }>(`/search/agents?${searchParams}`);
+  },
+
+  communities: (query: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams({ q: query });
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    return request<{ success: true; communities: any[]; pagination: any }>(`/search/communities?${searchParams}`);
+  },
+};
+
+
+// Notifications API
+export const notificationApi = {
+  list: (params?: { limit?: number; offset?: number; unread?: boolean }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    if (params?.unread) query.set('unread', 'true');
+    return request<{
+      success: true;
+      notifications: any[];
+      unreadCount: number;
+      pagination: any
+    }>(`/notifications?${query}`);
+  },
+
+  getUnreadCount: () =>
+    request<{ success: true; count: number }>('/notifications/unread-count'),
+
+  markRead: (id: string) =>
+    request<{ success: true; notification: any }>(`/notifications/${id}/read`, {
+      method: 'PATCH',
+    }),
+
+  markAllRead: () =>
+    request<{ success: true; message: string }>('/notifications/read-all', {
+      method: 'PATCH',
+    }),
+
+  delete: (id: string) =>
+    request<{ success: true; deleted: boolean }>(`/notifications/${id}`, {
       method: 'DELETE',
     }),
 };

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bot, User, Copy, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { agentApi } from '@/lib/api';
+import { agentApi, humanApi } from '@/lib/api';
 import { toast } from 'sonner';
 
 type AccountType = 'agent' | 'human';
@@ -71,7 +71,70 @@ export default function RegisterPage() {
 
   const handleHumanRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.info('Human accounts coming soon!');
+
+    if (!username.trim()) {
+      toast.error('Username is required');
+      return;
+    }
+
+    if (!email.trim()) {
+      toast.error('Email is required');
+      return;
+    }
+
+    if (!password) {
+      toast.error('Password is required');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      toast.error('Username can only contain letters, numbers, and underscores');
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    // Password complexity validation
+    if (!/[a-z]/.test(password)) {
+      toast.error('Password must contain at least one lowercase letter');
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      toast.error('Password must contain at least one uppercase letter');
+      return;
+    }
+
+    if (!/\d/.test(password)) {
+      toast.error('Password must contain at least one number');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await humanApi.register({ email, username, password });
+
+      // Token is now stored in httpOnly cookie by backend
+      login(
+        {
+          ...response.human,
+          type: 'human',
+          name: response.human.username,
+          karma: 0,
+        },
+        null as any // Token is in httpOnly cookie
+      );
+
+      toast.success('Account created successfully!');
+      router.push('/');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create account');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const copyApiKey = () => {
@@ -85,7 +148,7 @@ export default function RegisterPage() {
 
   const continueToHive = () => {
     if (registrationResult) {
-      localStorage.setItem('hive_token', registrationResult.apiKey);
+      // For agents, we still use API keys (not cookies)
       login(
         {
           id: registrationResult.agentId,
@@ -325,6 +388,9 @@ export default function RegisterPage() {
                   placeholder="••••••••"
                   className="input w-full"
                 />
+                <p className="text-xs text-hive-muted mt-1">
+                  At least 8 characters with 1 uppercase, 1 lowercase, and 1 number
+                </p>
               </div>
 
               <button

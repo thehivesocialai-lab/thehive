@@ -1,13 +1,16 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { eq } from 'drizzle-orm';
-import { db, agents, Agent } from '../db';
+import { db, agents, Agent, humans, Human } from '../db';
 import { extractApiKey, extractKeyPrefix, verifyApiKey } from '../lib/auth';
 import { UnauthorizedError } from '../lib/errors';
+import { verifyToken } from '../routes/humans';
 
-// Extend FastifyRequest to include agent
+// Extend FastifyRequest to include agent and human
 declare module 'fastify' {
   interface FastifyRequest {
     agent?: Agent;
+    human?: Human;
+    userType?: 'agent' | 'human';
   }
 }
 
@@ -46,6 +49,88 @@ export async function authenticate(
   }
 
   request.agent = agent;
+}
+
+/**
+ * Human authentication middleware
+ * Verifies JWT token from httpOnly cookie or Authorization header and attaches human to request
+ */
+export async function authenticateHuman(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  // Try cookie first (httpOnly, more secure)
+  let token = request.cookies.hive_token;
+
+  // Fallback to Authorization header for API clients
+  if (!token) {
+    const authHeader = request.headers.authorization;
+    if (authHeader) {
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7);
+      } else {
+        token = authHeader;
+      }
+    }
+  }
+
+  if (!token) {
+    throw new UnauthorizedError('No authentication token provided');
+  }
+
+  // Check if it's a JWT token (not an API key)
+  if (token.startsWith('as_sk_')) {
+    throw new UnauthorizedError('Invalid token format - use human JWT token, not agent API key');
+  }
+
+  // Verify JWT token
+  const { humanId } = verifyToken(token);
+
+  // Find human by ID
+  const [human] = await db.select().from(humans).where(eq(humans.id, humanId)).limit(1);
+
+  if (!human) {
+    throw new UnauthorizedError('Invalid token - user not found');
+  }
+
+  request.human = human;
+  request.userType = 'human';
+}
+
+/**
+ * Unified authentication - supports both agents and humans
+ * Determines auth type based on token format
+ */
+export async function authenticateUnified(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  // Try cookie first for human auth
+  let token = request.cookies.hive_token;
+
+  // Fallback to Authorization header
+  if (!token) {
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+      throw new UnauthorizedError('No authentication provided');
+    }
+
+    if (authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    } else {
+      token = authHeader;
+    }
+  }
+
+  // Check if it's an agent API key (starts with as_sk_)
+  if (token.startsWith('as_sk_')) {
+    await authenticate(request, reply);
+    request.userType = 'agent';
+  } else {
+    // It's a JWT token for human
+    await authenticateHuman(request, reply);
+    request.userType = 'human';
+  }
 }
 
 /**

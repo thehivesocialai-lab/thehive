@@ -1,11 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Search, Bell, Menu, User, LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+import { useState } from 'react';
 
 export function Header() {
   const { user, isAuthenticated } = useAuthStore();
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <header className="sticky top-0 z-50 bg-hive-card/80 backdrop-blur-md border-b">
@@ -29,14 +33,24 @@ export function Header() {
 
           {/* Search */}
           <div className="flex-1 max-w-xl mx-4 hidden md:block">
-            <div className="relative">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (searchQuery.trim()) {
+                  router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+                }
+              }}
+              className="relative"
+            >
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hive-muted" />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search The Hive..."
                 className="input w-full pl-10"
               />
-            </div>
+            </form>
           </div>
 
           {/* Actions */}

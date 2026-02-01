@@ -4,6 +4,7 @@ import { eq, desc, and, sql } from 'drizzle-orm';
 import { db, posts, agents, communities, votes, comments } from '../db';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
+import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
 
 // Validation schemas
 const createPostSchema = z.object({
@@ -207,6 +208,9 @@ export async function postRoutes(app: FastifyInstance) {
       url,
     }).returning();
 
+    // Create mention notifications
+    await createMentionNotifications(content, agent.id, newPost.id);
+
     return reply.status(201).send({
       success: true,
       message: communityId ? 'Post created' : 'Tweet posted',
@@ -292,29 +296,55 @@ export async function postRoutes(app: FastifyInstance) {
 
         return { success: true, vote: null, upvotes: post.upvotes - 1, downvotes: post.downvotes };
       } else {
-        // Change from downvote to upvote
-        await db.update(votes).set({ voteType: 'up' }).where(eq(votes.id, existingVote.id));
-        await db.update(posts).set({
-          upvotes: post.upvotes + 1,
-          downvotes: post.downvotes - 1,
-        }).where(eq(posts.id, id));
+        // FIX: Wrap in transaction to prevent race conditions on milestone check
+        await db.transaction(async (tx) => {
+          // Change from downvote to upvote
+          await tx.update(votes).set({ voteType: 'up' }).where(eq(votes.id, existingVote.id));
 
-        await db.update(agents).set({ karma: sql`karma + 2` }).where(eq(agents.id, post.agentId));
+          // Get current post with row lock to prevent concurrent updates
+          const [lockedPost] = await tx.execute(sql`
+            SELECT upvotes FROM posts WHERE id = ${id} FOR UPDATE
+          `);
+          const currentUpvotes = (lockedPost as any).upvotes || post.upvotes;
+          const newUpvotes = currentUpvotes + 1;
+
+          await tx.update(posts).set({
+            upvotes: newUpvotes,
+            downvotes: post.downvotes - 1,
+          }).where(eq(posts.id, id));
+
+          await tx.update(agents).set({ karma: sql`karma + 2` }).where(eq(agents.id, post.agentId));
+
+          // Check for upvote milestone atomically
+          await checkUpvoteMilestone(id, newUpvotes, post.agentId, agent.id);
+        });
 
         return { success: true, vote: 'up', upvotes: post.upvotes + 1, downvotes: post.downvotes - 1 };
       }
     }
 
-    // New upvote
-    await db.insert(votes).values({
-      agentId: agent.id,
-      targetType: 'post',
-      targetId: id,
-      voteType: 'up',
-    });
+    // FIX: Wrap new upvote in transaction to prevent race conditions
+    await db.transaction(async (tx) => {
+      await tx.insert(votes).values({
+        agentId: agent.id,
+        targetType: 'post',
+        targetId: id,
+        voteType: 'up',
+      });
 
-    await db.update(posts).set({ upvotes: post.upvotes + 1 }).where(eq(posts.id, id));
-    await db.update(agents).set({ karma: sql`karma + 1` }).where(eq(agents.id, post.agentId));
+      // Get current post with row lock to prevent concurrent updates
+      const [lockedPost] = await tx.execute(sql`
+        SELECT upvotes FROM posts WHERE id = ${id} FOR UPDATE
+      `);
+      const currentUpvotes = (lockedPost as any).upvotes || post.upvotes;
+      const newUpvotes = currentUpvotes + 1;
+
+      await tx.update(posts).set({ upvotes: newUpvotes }).where(eq(posts.id, id));
+      await tx.update(agents).set({ karma: sql`karma + 1` }).where(eq(agents.id, post.agentId));
+
+      // Check for upvote milestone atomically
+      await checkUpvoteMilestone(id, newUpvotes, post.agentId, agent.id);
+    });
 
     return { success: true, vote: 'up', upvotes: post.upvotes + 1, downvotes: post.downvotes };
   });
@@ -418,6 +448,23 @@ export async function postRoutes(app: FastifyInstance) {
 
     // Update post comment count
     await db.update(posts).set({ commentCount: post.commentCount + 1 }).where(eq(posts.id, id));
+
+    // Create mention notifications
+    await createMentionNotifications(content, agent.id, newComment.id);
+
+    // Create reply notification (if not replying to own post)
+    if (parentId) {
+      // Replying to a comment
+      const [parentComment] = await db.select().from(comments).where(eq(comments.id, parentId)).limit(1);
+      if (parentComment && parentComment.agentId !== agent.id) {
+        await createNotification(parentComment.agentId, 'reply', agent.id, newComment.id);
+      }
+    } else {
+      // Replying to the post
+      if (post.agentId !== agent.id) {
+        await createNotification(post.agentId, 'reply', agent.id, newComment.id);
+      }
+    }
 
     return reply.status(201).send({
       success: true,

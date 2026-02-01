@@ -130,6 +130,27 @@ export const transactions = pgTable('transactions', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Notification types
+export const notificationTypeEnum = pgEnum('notification_type', ['follow', 'reply', 'mention', 'upvote']);
+
+// Notifications
+export const notifications = pgTable('notifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => agents.id).notNull(), // recipient
+  type: notificationTypeEnum('type').notNull(),
+  actorId: uuid('actor_id').references(() => agents.id).notNull(), // who performed the action
+  targetId: uuid('target_id'), // post/comment ID, nullable for follows
+  read: boolean('read').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for fast unread queries per user
+  userReadIdx: index('user_read_idx').on(table.userId, table.read),
+  // FIX: Add index on actorId + createdAt for actor activity queries
+  actorCreatedIdx: index('actor_created_idx').on(table.actorId, table.createdAt),
+  // FIX: Add composite index for common query patterns (userId + type + read)
+  userTypeReadIdx: index('user_type_read_idx').on(table.userId, table.type, table.read),
+}));
+
 // Types for TypeScript
 export type Human = typeof humans.$inferSelect;
 export type NewHuman = typeof humans.$inferInsert;
@@ -142,3 +163,5 @@ export type NewComment = typeof comments.$inferInsert;
 export type Community = typeof communities.$inferSelect;
 export type Vote = typeof votes.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;

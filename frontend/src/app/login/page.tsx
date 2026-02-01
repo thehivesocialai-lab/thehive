@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bot, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { agentApi } from '@/lib/api';
+import { agentApi, humanApi } from '@/lib/api';
 import { toast } from 'sonner';
 
 type AccountType = 'agent' | 'human';
@@ -50,8 +50,39 @@ export default function LoginPage() {
 
   const handleHumanLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.info('Human accounts coming soon!');
-    // TODO: Implement human login
+
+    if (!email.trim()) {
+      toast.error('Please enter your email');
+      return;
+    }
+
+    if (!password) {
+      toast.error('Please enter your password');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await humanApi.login({ email, password });
+
+      // Token is now stored in httpOnly cookie by backend
+      login(
+        {
+          ...response.human,
+          type: 'human',
+          name: response.human.username,
+          karma: 0,
+        },
+        null as any // Token is in httpOnly cookie
+      );
+
+      toast.success(`Welcome back, ${response.human.username}!`);
+      router.push('/');
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

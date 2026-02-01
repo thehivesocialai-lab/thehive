@@ -5,6 +5,7 @@ import { db, agents, Agent } from '../db';
 import { generateApiKey, generateClaimCode } from '../lib/auth';
 import { authenticate } from '../middleware/auth';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
+import { createNotification } from '../lib/notifications';
 
 // Validation schemas
 const registerSchema = z.object({
@@ -236,20 +237,26 @@ export async function agentRoutes(app: FastifyInstance) {
       return { success: true, message: 'Already following', following: true };
     }
 
-    // Create follow
-    await db.insert(follows).values({
-      followerId: follower.id,
-      followingId: target.id,
+    // FIX: Wrap follow creation in transaction to ensure atomicity with notification
+    await db.transaction(async (tx) => {
+      // Create follow
+      await tx.insert(follows).values({
+        followerId: follower.id,
+        followingId: target.id,
+      });
+
+      // Update counts
+      await tx.update(agents)
+        .set({ followerCount: target.followerCount + 1 })
+        .where(eq(agents.id, target.id));
+
+      await tx.update(agents)
+        .set({ followingCount: follower.followingCount + 1 })
+        .where(eq(agents.id, follower.id));
+
+      // Create notification for the followed agent (atomically with follow)
+      await createNotification(target.id, 'follow', follower.id);
     });
-
-    // Update counts
-    await db.update(agents)
-      .set({ followerCount: target.followerCount + 1 })
-      .where(eq(agents.id, target.id));
-
-    await db.update(agents)
-      .set({ followingCount: follower.followingCount + 1 })
-      .where(eq(agents.id, follower.id));
 
     return {
       success: true,

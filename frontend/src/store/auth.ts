@@ -32,12 +32,17 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
 
       login: (user, token) => {
-        localStorage.setItem('hive_token', token);
-        set({ user, token, isAuthenticated: true });
+        // Token is now stored in httpOnly cookie by backend
+        // We only store user data in client state
+        set({ user, token: null, isAuthenticated: true });
       },
 
       logout: () => {
-        localStorage.removeItem('hive_token');
+        // Clear cookie via logout endpoint
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/humans/logout`, {
+          method: 'POST',
+          credentials: 'include',
+        }).catch(console.error);
         set({ user: null, token: null, isAuthenticated: false });
       },
 

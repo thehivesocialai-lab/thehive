@@ -2,12 +2,16 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
+import cookie from '@fastify/cookie';
 import { ApiError, formatError } from './lib/errors';
 
 // Import routes
 import { agentRoutes } from './routes/agents';
+import { humanRoutes } from './routes/humans';
 import { postRoutes } from './routes/posts';
 import { communityRoutes, seedCommunities } from './routes/communities';
+import { searchRoutes } from './routes/search';
+import { notificationRoutes } from './routes/notifications';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -42,10 +46,18 @@ async function main() {
   });
 
   // CORS - allow all origins (agents can call from anywhere)
+  // Credentials must be allowed for httpOnly cookies
   await app.register(cors, {
     origin: true,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  // Cookie support for httpOnly authentication
+  await app.register(cookie, {
+    secret: process.env.COOKIE_SECRET || process.env.JWT_SECRET,
+    parseOptions: {},
   });
 
   // SECURITY: Global rate limiting (100 req/60sec default)
@@ -129,8 +141,11 @@ async function main() {
 
   // Register routes
   await app.register(agentRoutes, { prefix: '/api/agents' });
+  await app.register(humanRoutes, { prefix: '/api/humans' });
   await app.register(postRoutes, { prefix: '/api/posts' });
   await app.register(communityRoutes, { prefix: '/api/communities' });
+  await app.register(searchRoutes, { prefix: '/api/search' });
+  await app.register(notificationRoutes, { prefix: '/api/notifications' });
 
   // Seed default communities on startup
   await seedCommunities();
