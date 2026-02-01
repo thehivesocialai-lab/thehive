@@ -23,7 +23,9 @@ export async function postRoutes(app: FastifyInstance) {
    * GET /api/posts
    * Get feed of posts
    */
-  app.get('/', { preHandler: optionalAuth }, async (request: FastifyRequest<{
+  app.get<{
+    Querystring: { community?: string; sort?: string; limit?: string; offset?: string }
+  }>('/', { preHandler: optionalAuth }, async (request: FastifyRequest<{
     Querystring: { community?: string; sort?: string; limit?: string; offset?: string }
   }>) => {
     const { community, sort = 'new', limit = '20', offset = '0' } = request.query;
@@ -88,7 +90,7 @@ export async function postRoutes(app: FastifyInstance) {
    * GET /api/posts/:id
    * Get single post with comments
    */
-  app.get('/:id', { preHandler: optionalAuth }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.get<{ Params: { id: string } }>('/:id', { preHandler: optionalAuth }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const { id } = request.params;
 
     const [post] = await db.select({
@@ -154,7 +156,7 @@ export async function postRoutes(app: FastifyInstance) {
    * Create a new post (authenticated)
    * SECURITY: Rate limit to prevent spam (10 posts per 15 minutes)
    */
-  app.post('/', {
+  app.post<{ Body: unknown }>('/', {
     preHandler: authenticate,
     config: {
       rateLimit: {
@@ -166,11 +168,11 @@ export async function postRoutes(app: FastifyInstance) {
         },
         errorResponseBuilder: (request, context) => ({
           success: false,
-          error: `Post creation rate limit exceeded. You can only create ${context.max} posts per 15 minutes. Please try again in ${Math.ceil(context.after / 1000 / 60)} minutes.`,
+          error: `Post creation rate limit exceeded. You can only create ${context.max} posts per 15 minutes. Please try again in ${Math.ceil(Number(context.after) / 1000 / 60)} minutes.`,
           code: 'POST_RATE_LIMITED',
           limit: context.max,
           remaining: 0,
-          resetAt: new Date(Date.now() + context.after).toISOString(),
+          resetAt: new Date(Date.now() + Number(context.after)).toISOString(),
         }),
       }
     }
@@ -229,7 +231,7 @@ export async function postRoutes(app: FastifyInstance) {
    * DELETE /api/posts/:id
    * Delete own post (authenticated) - ACTUALLY WORKS!
    */
-  app.delete('/:id', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.delete<{ Params: { id: string } }>('/:id', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const agent = request.agent!;
     const { id } = request.params;
 
@@ -260,7 +262,7 @@ export async function postRoutes(app: FastifyInstance) {
    * POST /api/posts/:id/upvote
    * Upvote a post (authenticated)
    */
-  app.post('/:id/upvote', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.post<{ Params: { id: string } }>('/:id/upvote', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const agent = request.agent!;
     const { id } = request.params;
 
@@ -321,7 +323,7 @@ export async function postRoutes(app: FastifyInstance) {
    * POST /api/posts/:id/downvote
    * Downvote a post (authenticated)
    */
-  app.post('/:id/downvote', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.post<{ Params: { id: string } }>('/:id/downvote', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const agent = request.agent!;
     const { id } = request.params;
 
@@ -375,7 +377,10 @@ export async function postRoutes(app: FastifyInstance) {
    * POST /api/posts/:id/comments
    * Add comment to post (authenticated)
    */
-  app.post('/:id/comments', { preHandler: authenticate }, async (request: FastifyRequest<{
+  app.post<{
+    Params: { id: string };
+    Body: unknown;
+  }>('/:id/comments', { preHandler: authenticate }, async (request: FastifyRequest<{
     Params: { id: string };
     Body: unknown;
   }>, reply) => {
@@ -433,7 +438,7 @@ export async function postRoutes(app: FastifyInstance) {
    * DELETE /api/comments/:id
    * Delete own comment (authenticated)
    */
-  app.delete('/comments/:id', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.delete<{ Params: { id: string } }>('/comments/:id', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const agent = request.agent!;
     const { id } = request.params;
 

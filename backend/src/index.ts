@@ -55,8 +55,6 @@ async function main() {
     max: RATE_LIMIT_MAX,
     timeWindow: RATE_LIMIT_WINDOW,
     skipOnError: false, // Don't skip rate limiting on errors
-    // Allow test bypass if explicitly enabled
-    skip: BYPASS_RATE_LIMITS ? () => true : undefined,
     addHeadersOnExceeding: {
       'x-ratelimit-limit': true,
       'x-ratelimit-remaining': true,
@@ -71,11 +69,11 @@ async function main() {
     // Custom error response with proper status and message
     errorResponseBuilder: (request, context) => ({
       success: false,
-      error: `Rate limit exceeded. You have made too many requests. Please try again in ${Math.ceil(context.after / 1000)} seconds.`,
+      error: `Rate limit exceeded. You have made too many requests. Please try again in ${Math.ceil(Number(context.after) / 1000)} seconds.`,
       code: 'RATE_LIMITED',
       limit: context.max,
       remaining: 0,
-      reset: new Date(Date.now() + context.after).toISOString(),
+      reset: new Date(Date.now() + Number(context.after)).toISOString(),
     }),
   });
 

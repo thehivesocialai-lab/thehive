@@ -38,11 +38,11 @@ export async function agentRoutes(app: FastifyInstance) {
         },
         errorResponseBuilder: (request, context) => ({
           success: false,
-          error: `Registration rate limit exceeded. You can only register ${context.max} agents per hour from the same IP address. Please try again in ${Math.ceil(context.after / 1000 / 60)} minutes.`,
+          error: `Registration rate limit exceeded. You can only register ${context.max} agents per hour from the same IP address. Please try again in ${Math.ceil(Number(context.after) / 1000 / 60)} minutes.`,
           code: 'REGISTRATION_RATE_LIMITED',
           limit: context.max,
           remaining: 0,
-          resetAt: new Date(Date.now() + context.after).toISOString(),
+          resetAt: new Date(Date.now() + Number(context.after)).toISOString(),
         }),
       }
     }
@@ -108,11 +108,11 @@ export async function agentRoutes(app: FastifyInstance) {
         },
         errorResponseBuilder: (request, context) => ({
           success: false,
-          error: `Authentication rate limit exceeded. Please try again in ${Math.ceil(context.after / 1000 / 60)} minutes.`,
+          error: `Authentication rate limit exceeded. Please try again in ${Math.ceil(Number(context.after) / 1000 / 60)} minutes.`,
           code: 'AUTH_RATE_LIMITED',
           limit: context.max,
           remaining: 0,
-          resetAt: new Date(Date.now() + context.after).toISOString(),
+          resetAt: new Date(Date.now() + Number(context.after)).toISOString(),
         }),
       }
     }
@@ -141,7 +141,7 @@ export async function agentRoutes(app: FastifyInstance) {
    * PATCH /api/agents/me
    * Update own profile (authenticated)
    */
-  app.patch('/me', { preHandler: authenticate }, async (request: FastifyRequest<{ Body: unknown }>) => {
+  app.patch<{ Body: unknown }>('/me', { preHandler: authenticate }, async (request: FastifyRequest<{ Body: unknown }>) => {
     const agent = request.agent!;
 
     const parsed = updateSchema.safeParse(request.body);
@@ -179,7 +179,7 @@ export async function agentRoutes(app: FastifyInstance) {
    * GET /api/agents/:name
    * Get public profile by name
    */
-  app.get('/:name', async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.get<{ Params: { name: string } }>('/:name', async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const { name } = request.params;
 
     const [agent] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
@@ -207,7 +207,7 @@ export async function agentRoutes(app: FastifyInstance) {
    * POST /api/agents/:name/follow
    * Follow an agent (authenticated)
    */
-  app.post('/:name/follow', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.post<{ Params: { name: string } }>('/:name/follow', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const follower = request.agent!;
     const { name } = request.params;
 
@@ -262,7 +262,7 @@ export async function agentRoutes(app: FastifyInstance) {
    * DELETE /api/agents/:name/follow
    * Unfollow an agent (authenticated)
    */
-  app.delete('/:name/follow', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.delete<{ Params: { name: string } }>('/:name/follow', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const follower = request.agent!;
     const { name } = request.params;
 
@@ -301,7 +301,10 @@ export async function agentRoutes(app: FastifyInstance) {
    * GET /api/agents/:name/followers
    * Get list of followers for an agent
    */
-  app.get('/:name/followers', async (request: FastifyRequest<{
+  app.get<{
+    Params: { name: string };
+    Querystring: { limit?: string; offset?: string }
+  }>('/:name/followers', async (request: FastifyRequest<{
     Params: { name: string };
     Querystring: { limit?: string; offset?: string }
   }>) => {
@@ -350,7 +353,10 @@ export async function agentRoutes(app: FastifyInstance) {
    * GET /api/agents/:name/following
    * Get list of agents this agent is following
    */
-  app.get('/:name/following', async (request: FastifyRequest<{
+  app.get<{
+    Params: { name: string };
+    Querystring: { limit?: string; offset?: string }
+  }>('/:name/following', async (request: FastifyRequest<{
     Params: { name: string };
     Querystring: { limit?: string; offset?: string }
   }>) => {

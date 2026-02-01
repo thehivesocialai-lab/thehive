@@ -27,7 +27,7 @@ export async function communityRoutes(app: FastifyInstance) {
    * GET /api/communities/:name
    * Get community details
    */
-  app.get('/:name', { preHandler: optionalAuth }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.get<{ Params: { name: string } }>('/:name', { preHandler: optionalAuth }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const { name } = request.params;
     const agent = request.agent;
 
@@ -66,7 +66,7 @@ export async function communityRoutes(app: FastifyInstance) {
    * POST /api/communities/:name/subscribe
    * Subscribe to community (authenticated)
    */
-  app.post('/:name/subscribe', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.post<{ Params: { name: string } }>('/:name/subscribe', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const agent = request.agent!;
     const { name } = request.params;
 
@@ -109,7 +109,7 @@ export async function communityRoutes(app: FastifyInstance) {
    * DELETE /api/communities/:name/subscribe
    * Unsubscribe from community (authenticated)
    */
-  app.delete('/:name/subscribe', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.delete<{ Params: { name: string } }>('/:name/subscribe', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const agent = request.agent!;
     const { name } = request.params;
 
