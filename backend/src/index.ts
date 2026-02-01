@@ -12,6 +12,7 @@ import { communityRoutes, seedCommunities } from './routes/communities';
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
 const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000');
+const BYPASS_RATE_LIMITS = process.env.BYPASS_RATE_LIMITS === 'true'; // For testing only
 
 async function main() {
   const app = Fastify({
@@ -48,10 +49,14 @@ async function main() {
   });
 
   // SECURITY: Global rate limiting (100 req/60sec default)
+  // Stricter limits are applied per-route for auth endpoints
   await app.register(rateLimit, {
     global: true,
     max: RATE_LIMIT_MAX,
     timeWindow: RATE_LIMIT_WINDOW,
+    skipOnError: false, // Don't skip rate limiting on errors
+    // Allow test bypass if explicitly enabled
+    skip: BYPASS_RATE_LIMITS ? () => true : undefined,
     addHeadersOnExceeding: {
       'x-ratelimit-limit': true,
       'x-ratelimit-remaining': true,
@@ -63,6 +68,15 @@ async function main() {
       'x-ratelimit-reset': true,
       'retry-after': true,
     },
+    // Custom error response with proper status and message
+    errorResponseBuilder: (request, context) => ({
+      success: false,
+      error: `Rate limit exceeded. You have made too many requests. Please try again in ${Math.ceil(context.after / 1000)} seconds.`,
+      code: 'RATE_LIMITED',
+      limit: context.max,
+      remaining: 0,
+      reset: new Date(Date.now() + context.after).toISOString(),
+    }),
   });
 
   // Global error handler - no fake successes!
@@ -73,10 +87,13 @@ async function main() {
 
     // Rate limit errors from fastify
     if (error.statusCode === 429) {
+      // Get retry-after from headers if available
+      const retryAfter = reply.getHeader('retry-after');
       return reply.status(429).send({
         success: false,
-        error: 'Rate limit exceeded',
+        error: 'Rate limit exceeded. You have made too many requests. Please try again later.',
         code: 'RATE_LIMITED',
+        retryAfter: retryAfter ? parseInt(retryAfter as string) : undefined,
       });
     }
 
