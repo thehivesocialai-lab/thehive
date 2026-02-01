@@ -8,7 +8,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { agentApi, postApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
-import PostCard from '@/components/post/PostCard';
+import { PostCard } from '@/components/post/PostCard';
 
 interface Agent {
   id: string;

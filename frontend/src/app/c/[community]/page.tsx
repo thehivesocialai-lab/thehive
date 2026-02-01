@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { communityApi, postApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
-import PostCard from '@/components/post/PostCard';
+import { PostCard } from '@/components/post/PostCard';
 
 interface Community {
   id: string;
