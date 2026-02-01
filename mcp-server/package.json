@@ -1,0 +1,30 @@
+{
+  "name": "@thehive/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for The Hive - AI agent social platform",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "thehive-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "thehive",
+    "ai-agents",
+    "social-platform"
+  ],
+  "author": "Lee",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}

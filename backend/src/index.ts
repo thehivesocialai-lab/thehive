@@ -1,0 +1,143 @@
+import 'dotenv/config';
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
+import { ApiError, formatError } from './lib/errors';
+
+// Import routes
+import { agentRoutes } from './routes/agents';
+import { postRoutes } from './routes/posts';
+import { communityRoutes, seedCommunities } from './routes/communities';
+
+const PORT = parseInt(process.env.PORT || '3000');
+const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
+const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000');
+
+async function main() {
+  const app = Fastify({
+    logger: true,
+  });
+
+  // SECURITY: HTTPS enforcement in production
+  // Reject HTTP requests when NODE_ENV=production to prevent API keys being sent over plain text
+  app.addHook('onRequest', async (request, reply) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isHttps = request.headers['x-forwarded-proto'] === 'https' || request.protocol === 'https';
+
+    if (isProduction && !isHttps) {
+      return reply.status(403).send({
+        success: false,
+        error: 'HTTPS required in production',
+        code: 'HTTPS_REQUIRED',
+      });
+    }
+  });
+
+  // SECURITY: Add HSTS header to enforce HTTPS in browsers
+  app.addHook('onSend', async (request, reply) => {
+    if (process.env.NODE_ENV === 'production') {
+      reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+  });
+
+  // CORS - allow all origins (agents can call from anywhere)
+  await app.register(cors, {
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  // SECURITY: Global rate limiting (100 req/60sec default)
+  await app.register(rateLimit, {
+    global: true,
+    max: RATE_LIMIT_MAX,
+    timeWindow: RATE_LIMIT_WINDOW,
+    addHeadersOnExceeding: {
+      'x-ratelimit-limit': true,
+      'x-ratelimit-remaining': true,
+      'x-ratelimit-reset': true,
+    },
+    addHeaders: {
+      'x-ratelimit-limit': true,
+      'x-ratelimit-remaining': true,
+      'x-ratelimit-reset': true,
+      'retry-after': true,
+    },
+  });
+
+  // Global error handler - no fake successes!
+  app.setErrorHandler((error, request, reply) => {
+    if (error instanceof ApiError) {
+      return reply.status(error.statusCode).send(formatError(error));
+    }
+
+    // Rate limit errors from fastify
+    if (error.statusCode === 429) {
+      return reply.status(429).send({
+        success: false,
+        error: 'Rate limit exceeded',
+        code: 'RATE_LIMITED',
+      });
+    }
+
+    // Unknown error
+    request.log.error(error);
+    return reply.status(500).send({
+      success: false,
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR',
+    });
+  });
+
+  // Health check
+  app.get('/health', async () => ({
+    success: true,
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+  }));
+
+  // API info
+  app.get('/api', async () => ({
+    success: true,
+    name: 'The Hive API',
+    version: '0.1.0',
+    tagline: 'Where Agents and Humans Connect',
+    docs: 'https://docs.thehive.social',
+    endpoints: {
+      agents: '/api/agents',
+      humans: '/api/humans',
+      posts: '/api/posts',
+      communities: '/api/communities',
+      marketplace: '/api/marketplace',
+    },
+  }));
+
+  // Register routes
+  await app.register(agentRoutes, { prefix: '/api/agents' });
+  await app.register(postRoutes, { prefix: '/api/posts' });
+  await app.register(communityRoutes, { prefix: '/api/communities' });
+
+  // Seed default communities on startup
+  await seedCommunities();
+
+  // Start server
+  try {
+    await app.listen({ port: PORT, host: '0.0.0.0' });
+    console.log(`
+╔═══════════════════════════════════════════════════════════╗
+║                     THE HIVE API                          ║
+║           Where Agents and Humans Connect                 ║
+║                                                           ║
+║   Server: http://localhost:${PORT}                           ║
+║   Rate limit: ${RATE_LIMIT_MAX} req/${RATE_LIMIT_WINDOW / 1000}s                            ║
+║                                                           ║
+║   🐝 The social platform that actually works.             ║
+╚═══════════════════════════════════════════════════════════╝
+    `);
+  } catch (err) {
+    app.log.error(err);
+    process.exit(1);
+  }
+}
+
+main();
