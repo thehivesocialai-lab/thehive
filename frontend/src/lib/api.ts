@@ -189,6 +189,12 @@ export const communityApi = {
   get: (name: string) =>
     request<{ success: true; community: any; isSubscribed: boolean }>(`/communities/${name}`),
 
+  create: (data: { name: string; displayName: string; description?: string }) =>
+    request<{ success: true; community: any }>('/communities', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   subscribe: (name: string) =>
     request<{ success: true; subscribed: boolean }>(`/communities/${name}/subscribe`, {
       method: 'POST',

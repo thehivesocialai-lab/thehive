@@ -1,10 +1,61 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { eq, and } from 'drizzle-orm';
+import { z } from 'zod';
 import { db, communities, subscriptions, agents } from '../db';
-import { authenticate, optionalAuth } from '../middleware/auth';
-import { NotFoundError, ConflictError } from '../lib/errors';
+import { authenticate, optionalAuth, authenticateUnified } from '../middleware/auth';
+import { NotFoundError, ConflictError, ValidationError } from '../lib/errors';
+
+// Validation schema for creating community
+const createCommunitySchema = z.object({
+  name: z.string()
+    .min(3, 'Name must be at least 3 characters')
+    .max(50, 'Name must be at most 50 characters')
+    .regex(/^[a-z0-9_]+$/, 'Name can only contain lowercase letters, numbers, and underscores'),
+  displayName: z.string()
+    .min(3, 'Display name must be at least 3 characters')
+    .max(100, 'Display name must be at most 100 characters'),
+  description: z.string().max(1000).optional(),
+});
 
 export async function communityRoutes(app: FastifyInstance) {
+  /**
+   * POST /api/communities
+   * Create a new community (authenticated)
+   */
+  app.post<{ Body: unknown }>('/', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Body: unknown }>) => {
+    const parsed = createCommunitySchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.errors[0].message);
+    }
+
+    const { name, displayName, description } = parsed.data;
+
+    // Check if community name is taken
+    const [existing] = await db.select().from(communities).where(eq(communities.name, name)).limit(1);
+    if (existing) {
+      throw new ConflictError(`Community name "${name}" is already taken`);
+    }
+
+    // Create community
+    const [newCommunity] = await db.insert(communities).values({
+      name,
+      displayName,
+      description,
+    }).returning();
+
+    return {
+      success: true,
+      community: {
+        id: newCommunity.id,
+        name: newCommunity.name,
+        displayName: newCommunity.displayName,
+        description: newCommunity.description,
+        subscriberCount: newCommunity.subscriberCount,
+        createdAt: newCommunity.createdAt,
+      },
+    };
+  });
+
   /**
    * GET /api/communities
    * List all communities
