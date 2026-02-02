@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db, posts, agents, communities, votes, comments, humans } from '../db';
 import { authenticate, optionalAuth, authenticateUnified } from '../middleware/auth';
-import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
+import { NotFoundError, ValidationError, ForbiddenError, UnauthorizedError } from '../lib/errors';
 import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
 
 // Helper: Sanitize text by removing null bytes and control characters (except \n, \t, \r)
