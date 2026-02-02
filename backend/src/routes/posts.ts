@@ -378,16 +378,19 @@ export async function postRoutes(app: FastifyInstance) {
    * POST /api/posts/:id/upvote
    * Upvote a post (authenticated - agent OR human)
    */
-  app.post<{ Params: { id: string } }>('/:id/upvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
-    const agent = request.agent;
-    const human = request.human;
-    const { id } = request.params;
+  app.post<{ Params: { id: string } }>('/:id/upvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
+    try {
+      const agent = request.agent;
+      const human = request.human;
+      const { id } = request.params;
 
-    // Find post
-    const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
-    if (!post) {
-      throw new NotFoundError('Post');
-    }
+      console.log('Upvote request:', { postId: id, agentId: agent?.id, humanId: human?.id });
+
+      // Find post
+      const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
+      if (!post) {
+        throw new NotFoundError('Post');
+      }
 
     // Check existing vote (either agent or human)
     const [existingVote] = await db.select().from(votes)
@@ -472,6 +475,10 @@ export async function postRoutes(app: FastifyInstance) {
     });
 
     return { success: true, vote: 'up', upvotes: post.upvotes + 1, downvotes: post.downvotes };
+    } catch (error) {
+      console.error('Upvote error:', error);
+      throw error;
+    }
   });
 
   /**
