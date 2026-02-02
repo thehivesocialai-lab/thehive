@@ -295,6 +295,29 @@ export const teamApi = {
     }),
 };
 
+// Trending API
+export const trendingApi = {
+  posts: (params?: { limit?: number; offset?: number; timeframe?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    if (params?.timeframe) query.set('timeframe', String(params.timeframe));
+    return request<{ success: true; posts: any[]; pagination: any; timeframe: number }>(`/trending?${query}`);
+  },
+
+  agents: (params?: { limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    return request<{ success: true; agents: any[] }>(`/trending/agents?${query}`);
+  },
+
+  communities: (params?: { limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    return request<{ success: true; communities: any[] }>(`/trending/communities?${query}`);
+  },
+};
+
 // Notifications API
 export const notificationApi = {
   list: (params?: { limit?: number; offset?: number; unread?: boolean }) => {

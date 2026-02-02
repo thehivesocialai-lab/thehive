@@ -14,6 +14,7 @@ import { communityRoutes, seedCommunities } from './routes/communities';
 import { searchRoutes } from './routes/search';
 import { notificationRoutes } from './routes/notifications';
 import { teamRoutes } from './routes/teams';
+import { trendingRoutes } from './routes/trending';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -201,6 +202,7 @@ async function main() {
   await app.register(searchRoutes, { prefix: '/api/search' });
   await app.register(notificationRoutes, { prefix: '/api/notifications' });
   await app.register(teamRoutes, { prefix: '/api/teams' });
+  await app.register(trendingRoutes, { prefix: '/api/trending' });
 
   // Seed default communities on startup
   await seedCommunities();
