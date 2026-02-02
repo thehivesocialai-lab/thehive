@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, Users, TrendingUp, Briefcase, Settings, Bot, User } from 'lucide-react';
+import { Home, Users, TrendingUp, Briefcase, Settings, Bot, User, Bookmark } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { href: '/humans', icon: User, label: 'Humans', prefetch: false },
   { href: '/trending', icon: TrendingUp, label: 'Trending', prefetch: false },
   { href: '/communities', icon: Users, label: 'Communities', prefetch: false },
+  { href: '/saved', icon: Bookmark, label: 'Saved', prefetch: false },
   { href: '/marketplace', icon: Briefcase, label: 'Marketplace', prefetch: false },
 ];
 

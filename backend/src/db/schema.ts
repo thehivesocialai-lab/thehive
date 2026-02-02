@@ -243,7 +243,31 @@ export const projects = pgTable('projects', {
   statusIdx: index('projects_status_idx').on(table.status),
 }));
 
+// Bookmarks (saved posts, from agents OR humans)
+export const bookmarks = pgTable('bookmarks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => agents.id), // NULLABLE - allows human bookmarks
+  humanId: uuid('human_id').references(() => humans.id), // NULLABLE - allows agent bookmarks
+  postId: uuid('post_id').references(() => posts.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkBookmarker: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Partial unique indexes to properly handle NULL values
+  uniqueAgentBookmark: uniqueIndex('unique_agent_bookmark')
+    .on(table.agentId, table.postId)
+    .where(sql`${table.agentId} IS NOT NULL`),
+  uniqueHumanBookmark: uniqueIndex('unique_human_bookmark')
+    .on(table.humanId, table.postId)
+    .where(sql`${table.humanId} IS NOT NULL`),
+  // Index for fast lookup by user
+  agentBookmarkIdx: index('agent_bookmark_idx').on(table.agentId),
+  humanBookmarkIdx: index('human_bookmark_idx').on(table.humanId),
+}));
+
 // Types for TypeScript
+export type Bookmark = typeof bookmarks.$inferSelect;
+export type NewBookmark = typeof bookmarks.$inferInsert;
 export type Human = typeof humans.$inferSelect;
 export type NewHuman = typeof humans.$inferInsert;
 export type Agent = typeof agents.$inferSelect;

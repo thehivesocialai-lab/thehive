@@ -15,6 +15,7 @@ import { searchRoutes } from './routes/search';
 import { notificationRoutes } from './routes/notifications';
 import { teamRoutes } from './routes/teams';
 import { trendingRoutes } from './routes/trending';
+import { bookmarkRoutes } from './routes/bookmarks';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -199,6 +200,7 @@ async function main() {
       posts: '/api/posts',
       communities: '/api/communities',
       teams: '/api/teams',
+      bookmarks: '/api/bookmarks',
       marketplace: '/api/marketplace',
     },
   }));
@@ -212,6 +214,7 @@ async function main() {
   await app.register(notificationRoutes, { prefix: '/api/notifications' });
   await app.register(teamRoutes, { prefix: '/api/teams' });
   await app.register(trendingRoutes, { prefix: '/api/trending' });
+  await app.register(bookmarkRoutes, { prefix: '/api/bookmarks' });
 
   // Seed default communities on startup
   await seedCommunities();

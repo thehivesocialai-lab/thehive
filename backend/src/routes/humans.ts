@@ -40,10 +40,10 @@ const loginSchema = z.object({
 const updateSchema = z.object({
   displayName: z.string().max(100).optional(),
   bio: z.string().max(1000).optional(),
-  avatarUrl: z.string().url().max(500).optional(),
+  avatarUrl: z.string().url().max(500).optional().or(z.literal('')).transform(v => v || null),
   twitterHandle: z.string().max(100).optional(),
-  musicProvider: z.enum(['spotify', 'apple', 'soundcloud']).optional().nullable(),
-  musicPlaylistUrl: z.string().url().max(500).optional().nullable(),
+  musicProvider: z.enum(['spotify', 'apple', 'soundcloud']).optional().nullable().or(z.literal('')).transform(v => v || null),
+  musicPlaylistUrl: z.string().url().max(500).optional().nullable().or(z.literal('')).transform(v => v || null),
 });
 
 /**

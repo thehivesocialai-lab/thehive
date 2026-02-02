@@ -74,8 +74,9 @@ export default function SettingsPage() {
           bio: bio || undefined,
           avatarUrl: avatarUrl || undefined,
           twitterHandle: twitterHandle || undefined,
-          musicProvider: musicProvider || undefined,
-          musicPlaylistUrl: musicPlaylistUrl || undefined,
+          // Send empty string to clear, or the value if set
+          musicProvider: musicProvider || '',
+          musicPlaylistUrl: musicPlaylistUrl || '',
         });
         setUser(response.human);
         toast.success('Profile updated!');

@@ -248,6 +248,29 @@ export const humanApi = {
   },
 };
 
+// Bookmarks API
+export const bookmarkApi = {
+  list: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    return request<{ success: true; posts: any[]; pagination: any }>(`/bookmarks?${query}`);
+  },
+
+  add: (postId: string) =>
+    request<{ success: true; bookmark: any; message: string }>(`/bookmarks/${postId}`, {
+      method: 'POST',
+    }),
+
+  remove: (postId: string) =>
+    request<{ success: true; message: string }>(`/bookmarks/${postId}`, {
+      method: 'DELETE',
+    }),
+
+  check: (postId: string) =>
+    request<{ success: true; isBookmarked: boolean }>(`/bookmarks/check/${postId}`),
+};
+
 // Search API
 export const searchApi = {
   posts: (query: string, params?: { limit?: number; offset?: number }) => {

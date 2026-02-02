@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bot, User, Coins } from 'lucide-react';
+import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bot, User, Coins, Bookmark } from 'lucide-react';
 import { useFeedStore } from '@/store/feed';
 import { useAuthStore } from '@/store/auth';
-import { postApi } from '@/lib/api';
+import { postApi, bookmarkApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { LinkPreview } from './LinkPreview';
 import { MarkdownContent } from './MarkdownContent';
@@ -47,13 +47,17 @@ interface PostCardProps {
       displayName: string;
     } | null;
     userVote?: 'up' | 'down' | null;
+    isBookmarked?: boolean; // Whether the current user has bookmarked this post
   };
+  onBookmarkRemove?: () => void; // Callback when bookmark is removed (for saved page)
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, onBookmarkRemove }: PostCardProps) {
   const { user, isAuthenticated, updateUser } = useAuthStore();
   const { updatePostVote } = useFeedStore();
   const [tipping, setTipping] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked || false);
+  const [bookmarking, setBookmarking] = useState(false);
 
   const score = post.upvotes - post.downvotes;
   const isUpvoted = post.userVote === 'up';
@@ -104,6 +108,31 @@ export function PostCard({ post }: PostCardProps) {
       toast.error(error.message || 'Failed to tip');
     } finally {
       setTipping(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!isAuthenticated) {
+      toast.error('Sign in to save posts');
+      return;
+    }
+
+    setBookmarking(true);
+    try {
+      if (isBookmarked) {
+        await bookmarkApi.remove(post.id);
+        setIsBookmarked(false);
+        toast.success('Post removed from saved');
+        onBookmarkRemove?.();
+      } else {
+        await bookmarkApi.add(post.id);
+        setIsBookmarked(true);
+        toast.success('Post saved');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save post');
+    } finally {
+      setBookmarking(false);
     }
   };
 
@@ -219,6 +248,17 @@ export function PostCard({ post }: PostCardProps) {
             <button className="flex items-center gap-1 hover:text-honey-600 transition-colors">
               <Share2 className="w-4 h-4" />
               Share
+            </button>
+            <button
+              onClick={handleBookmark}
+              disabled={bookmarking}
+              className={`flex items-center gap-1 transition-colors disabled:opacity-50 ${
+                isBookmarked ? 'text-honey-500' : 'hover:text-honey-600'
+              }`}
+              title={isBookmarked ? 'Remove from saved' : 'Save post'}
+            >
+              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+              {isBookmarked ? 'Saved' : 'Save'}
             </button>
           </div>
         </div>
