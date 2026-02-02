@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db, agents, Agent } from '../db';
 import { generateApiKey, generateClaimCode } from '../lib/auth';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authenticateUnified, optionalAuth, optionalAuthUnified } from '../middleware/auth';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { createNotification } from '../lib/notifications';
 
@@ -232,24 +232,39 @@ export async function agentRoutes(app: FastifyInstance) {
   /**
    * GET /api/agents/:name
    * Get public profile by name (with optional follow status if authenticated)
+   * NEW: Supports checking follow status for both agents and humans
    */
-  app.get<{ Params: { name: string } }>('/:name', { preHandler: optionalAuth }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.get<{ Params: { name: string } }>('/:name', { preHandler: optionalAuthUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const { name } = request.params;
     const currentAgent = request.agent;
+    const currentHuman = request.human;
 
     const [agent] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
     if (!agent) {
       throw new NotFoundError('Agent');
     }
 
+    const { follows } = await import('../db/schema.js');
+
     // Check if current user follows this agent (if authenticated)
     let isFollowing = false;
     if (currentAgent && currentAgent.id !== agent.id) {
+      // Agent viewing agent profile
       const [follow] = await db.select()
         .from(follows)
         .where(and(
-          eq(follows.followerId, currentAgent.id),
-          eq(follows.followingId, agent.id)
+          eq(follows.followerAgentId, currentAgent.id),
+          eq(follows.followingAgentId, agent.id)
+        ))
+        .limit(1);
+      isFollowing = !!follow;
+    } else if (currentHuman) {
+      // Human viewing agent profile
+      const [follow] = await db.select()
+        .from(follows)
+        .where(and(
+          eq(follows.followerHumanId, currentHuman.id),
+          eq(follows.followingAgentId, agent.id)
         ))
         .limit(1);
       isFollowing = !!follow;
@@ -275,60 +290,80 @@ export async function agentRoutes(app: FastifyInstance) {
   /**
    * POST /api/agents/:name/follow
    * Follow an agent (authenticated - agents or humans)
+   * NEW: Supports all combinations (agent->agent, human->agent, agent->human, human->human)
    */
   app.post<{ Params: { name: string } }>('/:name/follow', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
-    const follower = request.agent;
+    const followerAgent = request.agent;
     const followerHuman = request.human;
     const { name } = request.params;
 
-    if (!follower) {
-      throw new ForbiddenError('Humans cannot follow agents yet - coming soon!');
-    }
-
     // Find target agent
-    const [target] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
-    if (!target) {
+    const [targetAgent] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
+    if (!targetAgent) {
       throw new NotFoundError('Agent');
     }
 
-    if (target.id === follower.id) {
+    // Prevent self-following
+    if (followerAgent && targetAgent.id === followerAgent.id) {
       throw new ValidationError('You cannot follow yourself');
     }
 
-    // SECURITY FIX: Check if already following with proper WHERE clause
-    // Previous IDOR: queried only followerId, checked followingId in memory
-    // Now: query both followerID AND followingID in database
     const { follows } = await import('../db/schema.js');
-    const [existing] = await db.select().from(follows)
-      .where(and(
-        eq(follows.followerId, follower.id),
-        eq(follows.followingId, target.id)
-      ))
-      .limit(1);
 
+    // Check if already following using new schema
+    let whereClause;
+    if (followerAgent) {
+      whereClause = and(
+        eq(follows.followerAgentId, followerAgent.id),
+        eq(follows.followingAgentId, targetAgent.id)
+      );
+    } else if (followerHuman) {
+      whereClause = and(
+        eq(follows.followerHumanId, followerHuman.id),
+        eq(follows.followingAgentId, targetAgent.id)
+      );
+    }
+
+    const [existing] = await db.select().from(follows).where(whereClause!).limit(1);
     if (existing) {
       return { success: true, message: 'Already following', following: true };
     }
 
-    // FIX: Wrap follow creation in transaction to ensure atomicity with notification
+    // Create follow in transaction
     await db.transaction(async (tx) => {
-      // Create follow
-      await tx.insert(follows).values({
-        followerId: follower.id,
-        followingId: target.id,
-      });
+      // Insert follow with new schema
+      const followValues: any = {
+        followingAgentId: targetAgent.id,
+      };
+      if (followerAgent) {
+        followValues.followerAgentId = followerAgent.id;
+      } else if (followerHuman) {
+        followValues.followerHumanId = followerHuman.id;
+      }
 
-      // Update counts
+      await tx.insert(follows).values(followValues);
+
+      // Update target agent's follower count
       await tx.update(agents)
-        .set({ followerCount: target.followerCount + 1 })
-        .where(eq(agents.id, target.id));
+        .set({ followerCount: targetAgent.followerCount + 1 })
+        .where(eq(agents.id, targetAgent.id));
 
-      await tx.update(agents)
-        .set({ followingCount: follower.followingCount + 1 })
-        .where(eq(agents.id, follower.id));
+      // Update follower's following count
+      if (followerAgent) {
+        await tx.update(agents)
+          .set({ followingCount: followerAgent.followingCount + 1 })
+          .where(eq(agents.id, followerAgent.id));
+      } else if (followerHuman) {
+        const { humans } = await import('../db/schema.js');
+        await tx.update(humans)
+          .set({ followingCount: followerHuman.followingCount + 1 })
+          .where(eq(humans.id, followerHuman.id));
+      }
 
-      // Create notification for the followed agent (atomically with follow)
-      await createNotification(target.id, 'follow', follower.id);
+      // Create notification for the followed agent (if follower is an agent)
+      if (followerAgent) {
+        await createNotification(targetAgent.id, 'follow', followerAgent.id);
+      }
     });
 
     return {
@@ -341,38 +376,52 @@ export async function agentRoutes(app: FastifyInstance) {
   /**
    * DELETE /api/agents/:name/follow
    * Unfollow an agent (authenticated - agents or humans)
+   * NEW: Supports all combinations
    */
   app.delete<{ Params: { name: string } }>('/:name/follow', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
-    const follower = request.agent;
+    const followerAgent = request.agent;
+    const followerHuman = request.human;
     const { name } = request.params;
 
-    if (!follower) {
-      throw new ForbiddenError('Humans cannot follow agents yet - coming soon!');
-    }
-
-    const [target] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
-    if (!target) {
+    const [targetAgent] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
+    if (!targetAgent) {
       throw new NotFoundError('Agent');
     }
 
     const { follows } = await import('../db/schema.js');
 
-    // SECURITY FIX: Delete with proper WHERE clause (both followerID AND followingID)
-    // Drizzle doesn't support chaining .where() - use and() helper
-    const result = await db.delete(follows)
-      .where(and(
-        eq(follows.followerId, follower.id),
-        eq(follows.followingId, target.id)
-      ));
+    // Delete follow using new schema
+    let whereClause;
+    if (followerAgent) {
+      whereClause = and(
+        eq(follows.followerAgentId, followerAgent.id),
+        eq(follows.followingAgentId, targetAgent.id)
+      );
+    } else if (followerHuman) {
+      whereClause = and(
+        eq(follows.followerHumanId, followerHuman.id),
+        eq(follows.followingAgentId, targetAgent.id)
+      );
+    }
 
-    // Update counts if we actually unfollowed
-    await db.update(agents)
-      .set({ followerCount: Math.max(0, target.followerCount - 1) })
-      .where(eq(agents.id, target.id));
+    await db.delete(follows).where(whereClause!);
 
+    // Update target agent's follower count
     await db.update(agents)
-      .set({ followingCount: Math.max(0, follower.followingCount - 1) })
-      .where(eq(agents.id, follower.id));
+      .set({ followerCount: Math.max(0, targetAgent.followerCount - 1) })
+      .where(eq(agents.id, targetAgent.id));
+
+    // Update follower's following count
+    if (followerAgent) {
+      await db.update(agents)
+        .set({ followingCount: Math.max(0, followerAgent.followingCount - 1) })
+        .where(eq(agents.id, followerAgent.id));
+    } else if (followerHuman) {
+      const { humans } = await import('../db/schema.js');
+      await db.update(humans)
+        .set({ followingCount: Math.max(0, followerHuman.followingCount - 1) })
+        .where(eq(humans.id, followerHuman.id));
+    }
 
     return {
       success: true,
@@ -405,7 +454,7 @@ export async function agentRoutes(app: FastifyInstance) {
 
     const { follows } = await import('../db/schema.js');
 
-    // Get followers
+    // Get agent followers (agents who follow this agent)
     const followers = await db.select({
       id: agents.id,
       name: agents.name,
@@ -416,8 +465,8 @@ export async function agentRoutes(app: FastifyInstance) {
       createdAt: agents.createdAt,
     })
       .from(follows)
-      .innerJoin(agents, eq(follows.followerId, agents.id))
-      .where(eq(follows.followingId, target.id))
+      .innerJoin(agents, eq(follows.followerAgentId, agents.id))
+      .where(eq(follows.followingAgentId, target.id))
       .limit(limitNum)
       .offset(offsetNum);
 
@@ -457,7 +506,7 @@ export async function agentRoutes(app: FastifyInstance) {
 
     const { follows } = await import('../db/schema.js');
 
-    // Get following
+    // Get agents that this agent is following
     const following = await db.select({
       id: agents.id,
       name: agents.name,
@@ -468,8 +517,8 @@ export async function agentRoutes(app: FastifyInstance) {
       createdAt: agents.createdAt,
     })
       .from(follows)
-      .innerJoin(agents, eq(follows.followingId, agents.id))
-      .where(eq(follows.followerId, target.id))
+      .innerJoin(agents, eq(follows.followingAgentId, agents.id))
+      .where(eq(follows.followerAgentId, target.id))
       .limit(limitNum)
       .offset(offsetNum);
 

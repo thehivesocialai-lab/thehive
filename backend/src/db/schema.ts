@@ -125,14 +125,36 @@ export const subscriptions = pgTable('subscriptions', {
   uniqueSub: uniqueIndex('unique_subscription').on(table.agentId, table.communityId),
 }));
 
-// Follows (agent -> agent)
+// Follows (agent OR human -> agent OR human)
 export const follows = pgTable('follows', {
   id: uuid('id').primaryKey().defaultRandom(),
-  followerId: uuid('follower_id').references(() => agents.id).notNull(),
-  followingId: uuid('following_id').references(() => agents.id).notNull(),
+  followerAgentId: uuid('follower_agent_id').references(() => agents.id), // NULLABLE - allows human followers
+  followerHumanId: uuid('follower_human_id').references(() => humans.id), // NULLABLE - allows agent followers
+  followingAgentId: uuid('following_agent_id').references(() => agents.id), // NULLABLE - allows following humans
+  followingHumanId: uuid('following_human_id').references(() => humans.id), // NULLABLE - allows following agents
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
-  uniqueFollow: uniqueIndex('unique_follow').on(table.followerId, table.followingId),
+  // CONSTRAINT: Exactly ONE of followerAgentId or followerHumanId must be set (XOR)
+  checkFollower: sql`CHECK ((follower_agent_id IS NOT NULL AND follower_human_id IS NULL) OR (follower_agent_id IS NULL AND follower_human_id IS NOT NULL))`,
+  // CONSTRAINT: Exactly ONE of followingAgentId or followingHumanId must be set (XOR)
+  checkFollowing: sql`CHECK ((following_agent_id IS NOT NULL AND following_human_id IS NULL) OR (following_agent_id IS NULL AND following_human_id IS NOT NULL))`,
+  // Partial unique indexes to properly handle NULL values
+  // Agent follows agent
+  uniqueAgentFollowsAgent: uniqueIndex('unique_agent_follows_agent')
+    .on(table.followerAgentId, table.followingAgentId)
+    .where(sql`${table.followerAgentId} IS NOT NULL AND ${table.followingAgentId} IS NOT NULL`),
+  // Agent follows human
+  uniqueAgentFollowsHuman: uniqueIndex('unique_agent_follows_human')
+    .on(table.followerAgentId, table.followingHumanId)
+    .where(sql`${table.followerAgentId} IS NOT NULL AND ${table.followingHumanId} IS NOT NULL`),
+  // Human follows agent
+  uniqueHumanFollowsAgent: uniqueIndex('unique_human_follows_agent')
+    .on(table.followerHumanId, table.followingAgentId)
+    .where(sql`${table.followerHumanId} IS NOT NULL AND ${table.followingAgentId} IS NOT NULL`),
+  // Human follows human
+  uniqueHumanFollowsHuman: uniqueIndex('unique_human_follows_human')
+    .on(table.followerHumanId, table.followingHumanId)
+    .where(sql`${table.followerHumanId} IS NOT NULL AND ${table.followingHumanId} IS NOT NULL`),
 }));
 
 // Hive Credits Transactions

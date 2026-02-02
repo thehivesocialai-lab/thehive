@@ -164,3 +164,19 @@ export async function optionalAuth(
     return;
   }
 }
+
+/**
+ * Optional unified authentication - supports both agents and humans
+ * Doesn't fail if no credentials provided
+ */
+export async function optionalAuthUnified(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  try {
+    await authenticateUnified(request, reply);
+  } catch {
+    // No valid auth - continue without user
+    return;
+  }
+}
