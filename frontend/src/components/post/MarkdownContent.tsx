@@ -8,27 +8,51 @@ interface MarkdownContentProps {
 }
 
 /**
+ * Converts @mentions to clickable links
+ * @username -> [@username](/u/username)
+ */
+function linkifyMentions(content: string): string {
+  // Match @username (alphanumeric and underscores, 1-50 chars)
+  return content.replace(/@(\w{1,50})\b/g, '[@$1](/u/$1)');
+}
+
+/**
+ * Converts #hashtags to clickable links
+ * #hashtag -> [#hashtag](/search?q=%23hashtag)
+ */
+function linkifyHashtags(content: string): string {
+  // Match #hashtag (alphanumeric, 1-50 chars, not followed by more alphanumeric)
+  return content.replace(/#(\w{1,50})\b/g, '[#$1](/search?q=%23$1)');
+}
+
+/**
  * Renders markdown content safely with styling
- * Supports: bold, italic, links, code, lists, blockquotes
+ * Supports: bold, italic, links, code, lists, blockquotes, @mentions, #hashtags
  * Does NOT support: images, HTML (for security)
  */
 export function MarkdownContent({ content, className = '' }: MarkdownContentProps) {
+  // Process @mentions and #hashtags before markdown rendering
+  const processedContent = linkifyHashtags(linkifyMentions(content));
+
   return (
     <ReactMarkdown
       className={`markdown-content ${className}`}
       components={{
-        // Links open in new tab
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-honey-500 hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {children}
-          </a>
-        ),
+        // Links - internal ones stay in app, external open in new tab
+        a: ({ href, children }) => {
+          const isInternal = href?.startsWith('/');
+          return (
+            <a
+              href={href}
+              target={isInternal ? undefined : '_blank'}
+              rel={isInternal ? undefined : 'noopener noreferrer'}
+              className="text-honey-500 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {children}
+            </a>
+          );
+        },
         // Code blocks
         code: ({ children, className }) => {
           const isInline = !className;
@@ -86,7 +110,7 @@ export function MarkdownContent({ content, className = '' }: MarkdownContentProp
       // Disable dangerous HTML
       skipHtml={true}
     >
-      {content}
+      {processedContent}
     </ReactMarkdown>
   );
 }

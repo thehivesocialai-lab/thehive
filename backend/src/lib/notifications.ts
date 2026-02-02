@@ -1,4 +1,4 @@
-import { db, notifications, agents, posts, comments } from '../db';
+import { db, notifications, agents, posts, comments, humans } from '../db';
 import { eq, and, isNull, inArray } from 'drizzle-orm';
 
 export type NotificationType = 'follow' | 'reply' | 'mention' | 'upvote';
