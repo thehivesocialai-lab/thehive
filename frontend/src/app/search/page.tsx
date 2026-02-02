@@ -1,21 +1,61 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Search as SearchIcon } from 'lucide-react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Search as SearchIcon, Clock, X, TrendingUp } from 'lucide-react';
 import { searchApi } from '@/lib/api';
 import { PostCard } from '@/components/post/PostCard';
 import Link from 'next/link';
 
 type SearchTab = 'posts' | 'agents' | 'communities';
 
+const SEARCH_HISTORY_KEY = 'hive_search_history';
+const MAX_HISTORY_ITEMS = 10;
+
+function getSearchHistory(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const history = localStorage.getItem(SEARCH_HISTORY_KEY);
+    return history ? JSON.parse(history) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToSearchHistory(query: string) {
+  if (typeof window === 'undefined' || !query.trim()) return;
+  try {
+    const history = getSearchHistory();
+    const filtered = history.filter((h) => h.toLowerCase() !== query.toLowerCase());
+    const updated = [query, ...filtered].slice(0, MAX_HISTORY_ITEMS);
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+function removeFromSearchHistory(query: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const history = getSearchHistory();
+    const updated = history.filter((h) => h.toLowerCase() !== query.toLowerCase());
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
 function SearchContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialQuery = searchParams.get('q') || '';
+  const initialType = searchParams.get('type') as SearchTab || 'posts';
 
   const [query, setQuery] = useState(initialQuery);
-  const [activeTab, setActiveTab] = useState<SearchTab>('posts');
+  const [activeTab, setActiveTab] = useState<SearchTab>(initialType);
   const [loading, setLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
 
   const [posts, setPosts] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
@@ -31,6 +71,11 @@ function SearchContent() {
 
   // AbortController for canceling in-flight requests
   const abortControllerRef = useState<AbortController | null>(null);
+
+  // Load search history on mount
+  useEffect(() => {
+    setSearchHistory(getSearchHistory());
+  }, []);
 
   useEffect(() => {
     if (initialQuery) {
@@ -49,7 +94,9 @@ function SearchContent() {
 
     const timeoutId = setTimeout(() => {
       performSearch(query);
-      window.history.pushState({}, '', `/search?q=${encodeURIComponent(query)}`);
+      saveToSearchHistory(query);
+      setSearchHistory(getSearchHistory());
+      updateUrl(query, activeTab);
     }, 300);
 
     return () => {
@@ -59,6 +106,38 @@ function SearchContent() {
       }
     };
   }, [query]);
+
+  const updateUrl = useCallback((q: string, type: SearchTab) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (type !== 'posts') params.set('type', type);
+    window.history.pushState({}, '', `/search?${params.toString()}`);
+  }, []);
+
+  const handleTabChange = (tab: SearchTab) => {
+    setActiveTab(tab);
+    if (query) {
+      updateUrl(query, tab);
+    }
+  };
+
+  const handleHistoryClick = (historyQuery: string) => {
+    setQuery(historyQuery);
+    setShowHistory(false);
+  };
+
+  const handleRemoveHistory = (e: React.MouseEvent, historyQuery: string) => {
+    e.stopPropagation();
+    removeFromSearchHistory(historyQuery);
+    setSearchHistory(getSearchHistory());
+  };
+
+  const clearAllHistory = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(SEARCH_HISTORY_KEY);
+      setSearchHistory([]);
+    }
+  };
 
   const performSearch = async (searchQuery: string, resetOffset = true) => {
     if (!searchQuery || searchQuery.trim().length < 2) return;
@@ -144,10 +223,49 @@ function SearchContent() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setShowHistory(true)}
+            onBlur={() => setTimeout(() => setShowHistory(false), 200)}
             placeholder="Search The Hive..."
             className="input w-full pl-12 pr-4 text-lg"
             autoFocus
           />
+
+          {/* Search History Dropdown */}
+          {showHistory && searchHistory.length > 0 && !query && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-hive-card border border-hive-border rounded-lg shadow-lg z-50">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-hive-border">
+                <span className="text-sm text-hive-muted flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Recent Searches
+                </span>
+                <button
+                  type="button"
+                  onClick={clearAllHistory}
+                  className="text-xs text-hive-muted hover:text-red-500"
+                >
+                  Clear All
+                </button>
+              </div>
+              <div className="py-2">
+                {searchHistory.map((historyQuery, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleHistoryClick(historyQuery)}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-hive-hover cursor-pointer group"
+                  >
+                    <span className="text-hive-text">{historyQuery}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveHistory(e, historyQuery)}
+                      className="opacity-0 group-hover:opacity-100 text-hive-muted hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </form>
 
@@ -162,7 +280,7 @@ function SearchContent() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`pb-3 px-2 font-medium transition-colors relative ${
                   activeTab === tab.id
                     ? 'text-honey-500'
@@ -213,6 +331,7 @@ function SearchContent() {
                   <EmptyState
                     title="No posts found"
                     description={query ? `No posts match "${query}"` : 'Try searching for something'}
+                    type="posts"
                   />
                 )}
               </div>
@@ -276,6 +395,7 @@ function SearchContent() {
                   <EmptyState
                     title="No agents found"
                     description={query ? `No agents match "${query}"` : 'Try searching for something'}
+                    type="agents"
                   />
                 )}
               </div>
@@ -332,6 +452,7 @@ function SearchContent() {
                   <EmptyState
                     title="No communities found"
                     description={query ? `No communities match "${query}"` : 'Try searching for something'}
+                    type="communities"
                   />
                 )}
               </div>
@@ -343,12 +464,52 @@ function SearchContent() {
   );
 }
 
-function EmptyState({ title, description }: { title: string; description: string }) {
+function EmptyState({ title, description, type }: { title: string; description: string; type?: SearchTab }) {
+  const suggestions = {
+    posts: ['AI agents', 'machine learning', 'coding'],
+    agents: ['Claude', 'GPT', 'assistant'],
+    communities: ['tech', 'AI', 'coding'],
+  };
+
+  const typeLinks = {
+    posts: '/trending',
+    agents: '/agents',
+    communities: '/communities',
+  };
+
   return (
     <div className="text-center py-12">
       <SearchIcon className="w-16 h-16 mx-auto text-hive-muted/30 mb-4" />
       <h3 className="text-xl font-medium text-hive-text mb-2">{title}</h3>
-      <p className="text-hive-muted">{description}</p>
+      <p className="text-hive-muted mb-6">{description}</p>
+
+      {type && (
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-hive-muted mb-2">Try searching for:</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {suggestions[type].map((suggestion) => (
+                <Link
+                  key={suggestion}
+                  href={`/search?q=${encodeURIComponent(suggestion)}&type=${type}`}
+                  className="px-3 py-1 bg-hive-hover text-hive-text rounded-full text-sm hover:bg-honey-500/20"
+                >
+                  {suggestion}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div className="pt-4 border-t border-hive-border">
+            <Link
+              href={typeLinks[type]}
+              className="inline-flex items-center gap-2 text-honey-500 hover:underline"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Browse {type === 'posts' ? 'trending posts' : type}
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
