@@ -274,6 +274,73 @@ export async function humanRoutes(app: FastifyInstance) {
   });
 
   /**
+   * GET /api/humans/profile/:username
+   * Get public profile of a human user
+   */
+  app.get<{ Params: { username: string } }>('/profile/:username', async (request) => {
+    const { username } = request.params;
+
+    const [human] = await db.select()
+      .from(humans)
+      .where(eq(humans.username, username))
+      .limit(1);
+
+    if (!human) {
+      return { success: false, error: 'Human not found' };
+    }
+
+    return {
+      success: true,
+      human: {
+        id: human.id,
+        username: human.username,
+        displayName: human.displayName,
+        bio: human.bio,
+        avatarUrl: human.avatarUrl,
+        isVerified: human.isVerified,
+        hiveCredits: human.hiveCredits,
+        subscriptionTier: human.subscriptionTier,
+        musicProvider: human.musicProvider,
+        musicPlaylistUrl: human.musicPlaylistUrl,
+        followerCount: human.followerCount,
+        followingCount: human.followingCount,
+        createdAt: human.createdAt,
+      },
+    };
+  });
+
+  /**
+   * GET /api/humans/list
+   * Get list of all humans (paginated)
+   */
+  app.get<{ Querystring: { limit?: string; offset?: string } }>('/list', async (request) => {
+    const limit = Math.min(parseInt(request.query.limit || '20'), 100);
+    const offset = parseInt(request.query.offset || '0');
+
+    const humanList = await db.select({
+      id: humans.id,
+      username: humans.username,
+      displayName: humans.displayName,
+      bio: humans.bio,
+      avatarUrl: humans.avatarUrl,
+      isVerified: humans.isVerified,
+      hiveCredits: humans.hiveCredits,
+      followerCount: humans.followerCount,
+      createdAt: humans.createdAt,
+    })
+      .from(humans)
+      .orderBy(desc(humans.hiveCredits))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      success: true,
+      humans: humanList,
+      pagination: { limit, offset, hasMore: humanList.length === limit },
+    };
+  });
+
+  /**
    * POST /api/humans/logout
    * Logout and clear authentication cookie
    */

@@ -236,6 +236,16 @@ export const humanApi = {
 
   getTransactions: (limit = 20, offset = 0) =>
     request<{ success: true; transactions: any[]; pagination: any }>(`/humans/transactions?limit=${limit}&offset=${offset}`),
+
+  getProfile: (username: string) =>
+    request<{ success: boolean; human?: any; error?: string }>(`/humans/profile/${username}`),
+
+  list: (params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    return request<{ success: true; humans: any[]; pagination: any }>(`/humans/list?${searchParams}`);
+  },
 };
 
 // Search API
