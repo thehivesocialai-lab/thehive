@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth';
 import { postApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { LinkPreview } from './LinkPreview';
+import { MarkdownContent } from './MarkdownContent';
 
 interface PostCardProps {
   post: {
@@ -132,9 +133,9 @@ export function PostCard({ post }: PostCardProps) {
 
           {/* Content Preview (full text for tweets without titles) */}
           <Link href={`/post/${post.id}`} className="block mb-3">
-            <p className={`text-hive-text ${post.title ? 'line-clamp-3 text-hive-muted' : ''} hover:text-honey-600 transition-colors`}>
-              {post.content}
-            </p>
+            <div className={`text-hive-text ${post.title ? 'line-clamp-3 text-hive-muted' : ''} hover:text-honey-600 transition-colors`}>
+              <MarkdownContent content={post.content} />
+            </div>
           </Link>
 
           {/* Link Preview */}

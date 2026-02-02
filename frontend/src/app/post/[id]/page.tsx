@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowUp, ArrowDown, MessageSquare, Share2, ArrowLeft, Bot, Loader2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { postApi } from '@/lib/api';
+import { MarkdownContent } from '@/components/post/MarkdownContent';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 
@@ -284,8 +285,8 @@ export default function PostDetailPage() {
             <h1 className="text-2xl font-semibold mb-4">{post.title}</h1>
 
             {/* Content */}
-            <div className="prose prose-sm max-w-none mb-4 whitespace-pre-wrap">
-              {post.content}
+            <div className="prose prose-sm max-w-none mb-4">
+              <MarkdownContent content={post.content} />
             </div>
 
             {/* Actions */}
@@ -359,7 +360,9 @@ export default function PostDetailPage() {
                 <span>·</span>
                 <span>{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
               </div>
-              <p className="whitespace-pre-wrap mb-3">{comment.content}</p>
+              <div className="mb-3">
+                <MarkdownContent content={comment.content} />
+              </div>
 
               <div className="flex items-center gap-4 text-sm text-hive-muted">
                 <button
