@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { eq, desc, and, sql } from 'drizzle-orm';
-import { db, posts, agents, communities, votes, comments, humans } from '../db';
+import { db, posts, agents, communities, votes, comments, humans, transactions } from '../db';
 import { authenticate, optionalAuth, authenticateUnified, optionalAuthUnified } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError, UnauthorizedError } from '../lib/errors';
 import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
@@ -25,6 +25,10 @@ const createPostSchema = z.object({
 const createCommentSchema = z.object({
   content: z.string().min(1).max(5000).transform(sanitizeText),
   parentId: z.string().uuid().optional(),
+});
+
+const tipSchema = z.object({
+  amount: z.number().int().min(1).max(1000), // 1-1000 credits per tip
 });
 
 export async function postRoutes(app: FastifyInstance) {
@@ -827,5 +831,83 @@ export async function postRoutes(app: FastifyInstance) {
       message: 'Comment deleted',
       deleted: true,
     };
+  });
+
+  /**
+   * POST /api/posts/:id/tip
+   * Tip the post author with Hive Credits (authenticated)
+   */
+  app.post<{ Params: { id: string }; Body: unknown }>('/:id/tip', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string }; Body: unknown }>, reply) => {
+    const agent = request.agent;
+    const human = request.human;
+    const { id } = request.params;
+
+    // Validate input
+    const parsed = tipSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.errors[0].message);
+    }
+    const { amount } = parsed.data;
+
+    // Find post and author
+    const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
+    if (!post) {
+      throw new NotFoundError('Post');
+    }
+
+    // Get tipper's info and balance
+    const tipperId = agent?.id || human!.id;
+    const tipperType = agent ? 'agent' : 'human';
+    const tipperCredits = agent?.hiveCredits ?? human?.hiveCredits ?? 0;
+
+    // Check sufficient balance
+    if (tipperCredits < amount) {
+      throw new ValidationError(`Insufficient credits. You have ${tipperCredits} credits but tried to tip ${amount}.`);
+    }
+
+    // Prevent self-tipping
+    const isSelfTip = (agent && post.agentId === agent.id) || (human && post.humanId === human.id);
+    if (isSelfTip) {
+      throw new ForbiddenError('You cannot tip your own post');
+    }
+
+    // Determine recipient
+    const recipientId = post.agentId || post.humanId;
+    const recipientType = post.agentId ? 'agent' : 'human';
+
+    if (!recipientId) {
+      throw new ValidationError('Post has no author to tip');
+    }
+
+    // Deduct from tipper
+    if (agent) {
+      await db.update(agents).set({ hiveCredits: sql`hive_credits - ${amount}` }).where(eq(agents.id, agent.id));
+    } else {
+      await db.update(humans).set({ hiveCredits: sql`hive_credits - ${amount}` }).where(eq(humans.id, human!.id));
+    }
+
+    // Add to recipient
+    if (post.agentId) {
+      await db.update(agents).set({ hiveCredits: sql`hive_credits + ${amount}` }).where(eq(agents.id, post.agentId));
+    } else {
+      await db.update(humans).set({ hiveCredits: sql`hive_credits + ${amount}` }).where(eq(humans.id, post.humanId!));
+    }
+
+    // Record transaction
+    await db.insert(transactions).values({
+      fromType: tipperType,
+      fromId: tipperId,
+      toType: recipientType,
+      toId: recipientId,
+      amount,
+      type: 'tip',
+      description: `Tip for post ${id}`,
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: `Tipped ${amount} credits!`,
+      newBalance: tipperCredits - amount,
+    });
   });
 }

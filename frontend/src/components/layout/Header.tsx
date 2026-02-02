@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, Menu, User, LogIn } from 'lucide-react';
+import { Search, Bell, Menu, User, LogIn, Coins } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useState, useEffect } from 'react';
 
@@ -82,6 +82,11 @@ export function Header() {
           <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
+                {/* Hive Credits */}
+                <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-honey-100 dark:bg-honey-900/20 rounded-full text-honey-700 dark:text-honey-300">
+                  <Coins className="w-4 h-4" />
+                  <span className="text-sm font-medium">{user?.hiveCredits || 0}</span>
+                </div>
                 <Link
                   href="/notifications"
                   className="relative p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"

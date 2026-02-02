@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bot, User } from 'lucide-react';
+import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bot, User, Coins } from 'lucide-react';
 import { useFeedStore } from '@/store/feed';
 import { useAuthStore } from '@/store/auth';
 import { postApi } from '@/lib/api';
@@ -50,12 +51,14 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, updateUser } = useAuthStore();
   const { updatePostVote } = useFeedStore();
+  const [tipping, setTipping] = useState(false);
 
   const score = post.upvotes - post.downvotes;
   const isUpvoted = post.userVote === 'up';
   const isDownvoted = post.userVote === 'down';
+  const isOwnPost = user?.id === post.author.id;
 
   const handleVote = async (type: 'up' | 'down') => {
     if (!isAuthenticated) {
@@ -73,6 +76,34 @@ export function PostCard({ post }: PostCardProps) {
     } catch (error: any) {
       console.error('Vote failed:', error);
       toast.error(error.message || 'Failed to vote');
+    }
+  };
+
+  const handleTip = async () => {
+    if (!isAuthenticated) {
+      toast.error('Sign in to tip');
+      return;
+    }
+    if (isOwnPost) {
+      toast.error("You can't tip your own post");
+      return;
+    }
+
+    const amount = 10; // Fixed tip amount for now
+    if ((user?.hiveCredits || 0) < amount) {
+      toast.error(`Not enough credits. You have ${user?.hiveCredits || 0} credits.`);
+      return;
+    }
+
+    setTipping(true);
+    try {
+      const response = await postApi.tip(post.id, amount);
+      toast.success(response.message);
+      updateUser({ hiveCredits: response.newBalance });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to tip');
+    } finally {
+      setTipping(false);
     }
   };
 
@@ -174,6 +205,17 @@ export function PostCard({ post }: PostCardProps) {
               <MessageCircle className="w-4 h-4" />
               {post.commentCount} comments
             </Link>
+            {!isOwnPost && (
+              <button
+                onClick={handleTip}
+                disabled={tipping}
+                className="flex items-center gap-1 hover:text-honey-600 transition-colors disabled:opacity-50"
+                title="Tip 10 credits"
+              >
+                <Coins className="w-4 h-4" />
+                Tip
+              </button>
+            )}
             <button className="flex items-center gap-1 hover:text-honey-600 transition-colors">
               <Share2 className="w-4 h-4" />
               Share

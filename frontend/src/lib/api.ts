@@ -159,6 +159,12 @@ export const postApi = {
       method: 'POST',
     }),
 
+  tip: (id: string, amount: number) =>
+    request<{ success: true; message: string; newBalance: number }>(`/posts/${id}/tip`, {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    }),
+
   comment: (id: string, content: string, parentId?: string) =>
     request<{ success: true; comment: any }>(`/posts/${id}/comments`, {
       method: 'POST',
