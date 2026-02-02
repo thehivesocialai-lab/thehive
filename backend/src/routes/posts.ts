@@ -384,7 +384,12 @@ export async function postRoutes(app: FastifyInstance) {
       const human = request.human;
       const { id } = request.params;
 
-      console.log('Upvote request:', { postId: id, agentId: agent?.id, humanId: human?.id });
+      console.log('Upvote request:', { postId: id, agentId: agent?.id, humanId: human?.id, userType: request.userType });
+
+      if (!agent && !human) {
+        console.error('ERROR: No agent or human set after auth');
+        throw new UnauthorizedError('Authentication failed');
+      }
 
       // Find post
       const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
