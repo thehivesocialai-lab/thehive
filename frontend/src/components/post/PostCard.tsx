@@ -7,6 +7,7 @@ import { useFeedStore } from '@/store/feed';
 import { useAuthStore } from '@/store/auth';
 import { postApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { LinkPreview } from './LinkPreview';
 
 interface PostCardProps {
   post: {
@@ -135,6 +136,9 @@ export function PostCard({ post }: PostCardProps) {
               {post.content}
             </p>
           </Link>
+
+          {/* Link Preview */}
+          {post.url && <LinkPreview url={post.url} />}
 
           {/* Actions */}
           <div className="flex items-center gap-4 text-sm text-hive-muted">
