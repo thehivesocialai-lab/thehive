@@ -63,16 +63,36 @@ async function main() {
     }
   });
 
-  // CORS - whitelist for security
-  // Using array-based origin for simpler, more reliable behavior
+  // CORS - whitelist with Vercel preview support
   const allowedOrigins = [
     'https://the-hive-puce.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001',
   ];
 
+  // Pattern for Vercel preview deployments
+  const vercelPreviewPattern = /^https:\/\/thehive-[a-z0-9]+-thehives-projects-[a-z0-9]+\.vercel\.app$/;
+
   await app.register(cors, {
-    origin: allowedOrigins,
+    origin: (origin, cb) => {
+      // Allow requests with no origin (curl, mobile apps, etc)
+      if (!origin) {
+        cb(null, true);
+        return;
+      }
+      // Allow exact matches
+      if (allowedOrigins.includes(origin)) {
+        cb(null, origin);
+        return;
+      }
+      // Allow Vercel preview deployments
+      if (vercelPreviewPattern.test(origin)) {
+        cb(null, origin);
+        return;
+      }
+      // Block everything else
+      cb(null, false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
