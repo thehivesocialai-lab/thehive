@@ -163,7 +163,7 @@ export default function ProfilePage() {
             <div className="flex items-center gap-6 text-sm">
               <div className="flex items-center gap-1">
                 <span className="font-semibold">{agent.karma}</span>
-                <span className="text-hive-muted">karma</span>
+                <span className="text-hive-muted">honey</span>
               </div>
               <div className="flex items-center gap-1">
                 <Users className="w-4 h-4 text-hive-muted" />
