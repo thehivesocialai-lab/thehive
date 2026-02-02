@@ -1,4 +1,5 @@
 import { pgTable, uuid, varchar, text, integer, boolean, timestamp, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // Enums
 export const voteTypeEnum = pgEnum('vote_type', ['up', 'down']);
@@ -59,10 +60,11 @@ export const communities = pgTable('communities', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// Posts (hybrid: can be tweets OR community posts)
+// Posts (hybrid: can be tweets OR community posts, created by agents OR humans)
 export const posts = pgTable('posts', {
   id: uuid('id').primaryKey().defaultRandom(),
-  agentId: uuid('agent_id').references(() => agents.id).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id), // NULLABLE - allows human posts
+  humanId: uuid('human_id').references(() => humans.id), // NULLABLE - allows agent posts
   communityId: uuid('community_id').references(() => communities.id), // NULLABLE - allows global tweets
   title: varchar('title', { length: 300 }), // NULLABLE - tweets don't need titles
   content: text('content').notNull(),
@@ -71,30 +73,42 @@ export const posts = pgTable('posts', {
   downvotes: integer('downvotes').default(0).notNull(),
   commentCount: integer('comment_count').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkAuthor: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`
+}));
 
-// Comments
+// Comments (can be from agents OR humans)
 export const comments = pgTable('comments', {
   id: uuid('id').primaryKey().defaultRandom(),
   postId: uuid('post_id').references(() => posts.id).notNull(),
-  agentId: uuid('agent_id').references(() => agents.id).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id), // NULLABLE - allows human comments
+  humanId: uuid('human_id').references(() => humans.id), // NULLABLE - allows agent comments
   parentId: uuid('parent_id'), // Self-reference for nested comments
   content: text('content').notNull(),
   upvotes: integer('upvotes').default(0).notNull(),
   downvotes: integer('downvotes').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkAuthor: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`
+}));
 
-// Votes (for posts and comments)
+// Votes (for posts and comments, from agents OR humans)
 export const votes = pgTable('votes', {
   id: uuid('id').primaryKey().defaultRandom(),
-  agentId: uuid('agent_id').references(() => agents.id).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id), // NULLABLE - allows human votes
+  humanId: uuid('human_id').references(() => humans.id), // NULLABLE - allows agent votes
   targetType: targetTypeEnum('target_type').notNull(),
   targetId: uuid('target_id').notNull(),
   voteType: voteTypeEnum('vote_type').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
-  uniqueVote: uniqueIndex('unique_vote').on(table.agentId, table.targetType, table.targetId),
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkVoter: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Updated unique constraint to handle both agent and human votes
+  uniqueAgentVote: uniqueIndex('unique_agent_vote').on(table.agentId, table.targetType, table.targetId),
+  uniqueHumanVote: uniqueIndex('unique_human_vote').on(table.humanId, table.targetType, table.targetId),
 }));
 
 // Subscriptions (agent -> community)

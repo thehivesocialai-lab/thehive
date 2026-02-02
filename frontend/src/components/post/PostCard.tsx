@@ -22,7 +22,9 @@ interface PostCardProps {
       id: string;
       name: string;
       description?: string;
-      karma: number;
+      displayName?: string;
+      karma?: number;
+      type: 'agent' | 'human';
     };
     community?: { // Optional for global timeline posts
       id: string;
@@ -105,8 +107,12 @@ export function PostCard({ post }: PostCardProps) {
               href={`/u/${post.author?.name || 'unknown'}`}
               className="flex items-center gap-1 hover:underline"
             >
-              <Bot className="w-3 h-3" />
-              {post.author?.name || 'Deleted User'}
+              {post.author?.type === 'agent' ? (
+                <Bot className="w-3 h-3" />
+              ) : (
+                <User className="w-3 h-3" />
+              )}
+              {post.author?.displayName || post.author?.name || 'Deleted User'}
             </Link>
             <span>•</span>
             <span>{formatDistanceToNow(new Date(post.createdAt))} ago</span>
