@@ -52,6 +52,8 @@ export default function PostDetailPage() {
   const [commenting, setCommenting] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [voting, setVoting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   useEffect(() => {
     loadPost();
@@ -122,31 +124,78 @@ export default function PostDetailPage() {
     }
   };
 
-  const handleComment = async (e: React.FormEvent) => {
+  const handleComment = async (e: React.FormEvent, parentId?: string) => {
     e.preventDefault();
     if (!isAuthenticated) {
       toast.error('Please sign in to comment');
       return;
     }
-    if (!commentText.trim() || !post) return;
+    const text = parentId ? replyText : commentText;
+    if (!text.trim() || !post) return;
 
     setCommenting(true);
     try {
-      console.log('Adding comment:', { postId, commentText });
-      const response = await postApi.comment(postId, commentText);
-      console.log('Comment added:', response);
+      const response = await postApi.comment(postId, text, parentId);
       setPost({
         ...post,
         comments: [...(post.comments || []), response.comment],
         commentCount: post.commentCount + 1,
       });
-      setCommentText('');
+      if (parentId) {
+        setReplyText('');
+        setReplyingTo(null);
+      } else {
+        setCommentText('');
+      }
       toast.success('Comment added!');
     } catch (error: any) {
       console.error('Comment failed:', error);
       toast.error(error.message || 'Failed to add comment');
     } finally {
       setCommenting(false);
+    }
+  };
+
+  const handleCommentVote = async (commentId: string, voteType: 'up' | 'down') => {
+    if (!isAuthenticated || !post) return;
+
+    try {
+      // Optimistically update UI
+      const updatedComments = post.comments.map(c => {
+        if (c.id === commentId) {
+          const newUpvotes = voteType === 'up' ? c.upvotes + 1 : c.upvotes;
+          const newDownvotes = voteType === 'down' ? c.downvotes + 1 : c.downvotes;
+          return { ...c, upvotes: newUpvotes, downvotes: newDownvotes };
+        }
+        return c;
+      });
+      setPost({ ...post, comments: updatedComments });
+
+      // Call API (implement these in api.ts if not exists)
+      if (voteType === 'up') {
+        await postApi.upvoteComment(commentId);
+      } else {
+        await postApi.downvoteComment(commentId);
+      }
+    } catch (error: any) {
+      toast.error('Failed to vote on comment');
+      loadPost(); // Reload to fix state
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('Delete this comment?')) return;
+
+    try {
+      await postApi.deleteComment(commentId);
+      setPost({
+        ...post!,
+        comments: post!.comments.filter(c => c.id !== commentId),
+        commentCount: post!.commentCount - 1,
+      });
+      toast.success('Comment deleted');
+    } catch (error: any) {
+      toast.error('Failed to delete comment');
     }
   };
 
@@ -310,13 +359,70 @@ export default function PostDetailPage() {
                 <span>·</span>
                 <span>{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
               </div>
-              <p className="whitespace-pre-wrap">{comment.content}</p>
-              <div className="flex items-center gap-4 mt-3 text-sm text-hive-muted">
-                <button className="flex items-center gap-1 hover:text-honey-600">
+              <p className="whitespace-pre-wrap mb-3">{comment.content}</p>
+
+              <div className="flex items-center gap-4 text-sm text-hive-muted">
+                <button
+                  onClick={() => handleCommentVote(comment.id, 'up')}
+                  className="flex items-center gap-1 hover:text-honey-600"
+                  disabled={!isAuthenticated}
+                >
                   <ArrowUp className="w-4 h-4" />
                   {comment.upvotes - comment.downvotes}
                 </button>
+                <button
+                  onClick={() => handleCommentVote(comment.id, 'down')}
+                  className="flex items-center gap-1 hover:text-red-500"
+                  disabled={!isAuthenticated}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setReplyingTo(comment.id)}
+                  className="hover:text-hive-text"
+                  disabled={!isAuthenticated}
+                >
+                  Reply
+                </button>
+                {user?.name === comment.author?.name && (
+                  <button
+                    onClick={() => handleDeleteComment(comment.id)}
+                    className="hover:text-red-500"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
+
+              {/* Reply form */}
+              {replyingTo === comment.id && (
+                <form onSubmit={(e) => handleComment(e, comment.id)} className="mt-4 pl-4 border-l-2 border-honey-200">
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Write a reply..."
+                    className="input w-full resize-none mb-2"
+                    rows={2}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={commenting || !replyText.trim()}
+                      className="btn-primary btn-sm"
+                    >
+                      Reply
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setReplyingTo(null); setReplyText(''); }}
+                      className="btn-secondary btn-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           ))
         )}
