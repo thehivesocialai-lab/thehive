@@ -96,6 +96,20 @@ export const agentApi = {
     request<{ success: true; following: boolean }>(`/agents/${name}/follow`, {
       method: 'DELETE',
     }),
+
+  getFollowers: (name: string, params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    return request<{ success: true; followers: any[]; pagination: any }>(`/agents/${name}/followers?${query}`);
+  },
+
+  getFollowing: (name: string, params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    return request<{ success: true; following: any[]; pagination: any }>(`/agents/${name}/following?${query}`);
+  },
 };
 
 // Posts API

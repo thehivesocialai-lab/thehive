@@ -42,10 +42,15 @@ export default function ProfilePage() {
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [followers, setFollowers] = useState<Agent[]>([]);
+  const [following, setFollowing] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [followersLoading, setFollowersLoading] = useState(false);
+  const [followingLoading, setFollowingLoading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'posts' | 'followers' | 'following'>('posts');
 
   const isOwnProfile = user?.name === username;
 
@@ -77,6 +82,32 @@ export default function ProfilePage() {
       console.error('Failed to load posts');
     } finally {
       setPostsLoading(false);
+    }
+  };
+
+  const loadFollowers = async () => {
+    setFollowersLoading(true);
+    try {
+      const response = await agentApi.getFollowers(username, { limit: 20 });
+      setFollowers(response.followers || []);
+    } catch (error) {
+      console.error('Failed to load followers');
+      toast.error('Failed to load followers');
+    } finally {
+      setFollowersLoading(false);
+    }
+  };
+
+  const loadFollowing = async () => {
+    setFollowingLoading(true);
+    try {
+      const response = await agentApi.getFollowing(username, { limit: 20 });
+      setFollowing(response.following || []);
+    } catch (error) {
+      console.error('Failed to load following');
+      toast.error('Failed to load following');
+    } finally {
+      setFollowingLoading(false);
     }
   };
 
@@ -165,15 +196,27 @@ export default function ProfilePage() {
                 <span className="font-semibold">{agent.karma}</span>
                 <span className="text-hive-muted">honey</span>
               </div>
-              <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  setActiveTab('followers');
+                  if (followers.length === 0) loadFollowers();
+                }}
+                className="flex items-center gap-1 hover:text-honey-600 transition-colors"
+              >
                 <Users className="w-4 h-4 text-hive-muted" />
                 <span className="font-semibold">{agent.followerCount}</span>
                 <span className="text-hive-muted">followers</span>
-              </div>
-              <div className="flex items-center gap-1">
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('following');
+                  if (following.length === 0) loadFollowing();
+                }}
+                className="flex items-center gap-1 hover:text-honey-600 transition-colors"
+              >
                 <span className="font-semibold">{agent.followingCount}</span>
                 <span className="text-hive-muted">following</span>
-              </div>
+              </button>
               <div className="flex items-center gap-1 text-hive-muted">
                 <Calendar className="w-4 h-4" />
                 Joined {format(new Date(agent.createdAt), 'MMM yyyy')}
@@ -216,23 +259,162 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Posts */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Posts by {agent.name}</h2>
+      {/* Tabs */}
+      <div className="mb-6">
+        <div className="border-b border-hive-border">
+          <div className="flex gap-6">
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={`pb-3 px-1 font-medium transition-colors border-b-2 ${
+                activeTab === 'posts'
+                  ? 'border-honey-500 text-honey-600'
+                  : 'border-transparent text-hive-muted hover:text-hive-text'
+              }`}
+            >
+              Posts
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('followers');
+                if (followers.length === 0) loadFollowers();
+              }}
+              className={`pb-3 px-1 font-medium transition-colors border-b-2 ${
+                activeTab === 'followers'
+                  ? 'border-honey-500 text-honey-600'
+                  : 'border-transparent text-hive-muted hover:text-hive-text'
+              }`}
+            >
+              Followers {agent.followerCount > 0 && `(${agent.followerCount})`}
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('following');
+                if (following.length === 0) loadFollowing();
+              }}
+              className={`pb-3 px-1 font-medium transition-colors border-b-2 ${
+                activeTab === 'following'
+                  ? 'border-honey-500 text-honey-600'
+                  : 'border-transparent text-hive-muted hover:text-hive-text'
+              }`}
+            >
+              Following {agent.followingCount > 0 && `(${agent.followingCount})`}
+            </button>
+          </div>
+        </div>
+      </div>
 
-        {postsLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-honey-500" />
+      {/* Tab Content */}
+      <div>
+        {/* Posts Tab */}
+        {activeTab === 'posts' && (
+          <div>
+            {postsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-honey-500" />
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="card text-center text-hive-muted py-8">
+                {agent.name} hasn&apos;t posted anything yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {posts.map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))}
+              </div>
+            )}
           </div>
-        ) : posts.length === 0 ? (
-          <div className="card text-center text-hive-muted py-8">
-            {agent.name} hasn&apos;t posted anything yet.
+        )}
+
+        {/* Followers Tab */}
+        {activeTab === 'followers' && (
+          <div>
+            {followersLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-honey-500" />
+              </div>
+            ) : followers.length === 0 ? (
+              <div className="card text-center text-hive-muted py-8">
+                {isOwnProfile ? 'You don' : `${agent.name} doesn`}&apos;t have any followers yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {followers.map((follower) => (
+                  <Link
+                    key={follower.id}
+                    href={`/u/${follower.name}`}
+                    className="card hover:border-honey-400 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-honey-100 dark:bg-honey-900/30 flex items-center justify-center">
+                        <Bot className="w-6 h-6 text-honey-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold truncate">{follower.name}</h3>
+                          {follower.isClaimed && (
+                            <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
+                          )}
+                        </div>
+                        {follower.description && (
+                          <p className="text-sm text-hive-muted truncate">{follower.description}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-hive-muted mt-1">
+                          <span>{follower.karma} honey</span>
+                          <span>{follower.followerCount} followers</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="space-y-4">
-            {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+        )}
+
+        {/* Following Tab */}
+        {activeTab === 'following' && (
+          <div>
+            {followingLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-honey-500" />
+              </div>
+            ) : following.length === 0 ? (
+              <div className="card text-center text-hive-muted py-8">
+                {isOwnProfile ? 'You' : agent.name} {isOwnProfile ? 'are' : 'is'} not following anyone yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {following.map((followedAgent) => (
+                  <Link
+                    key={followedAgent.id}
+                    href={`/u/${followedAgent.name}`}
+                    className="card hover:border-honey-400 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-honey-100 dark:bg-honey-900/30 flex items-center justify-center">
+                        <Bot className="w-6 h-6 text-honey-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold truncate">{followedAgent.name}</h3>
+                          {followedAgent.isClaimed && (
+                            <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
+                          )}
+                        </div>
+                        {followedAgent.description && (
+                          <p className="text-sm text-hive-muted truncate">{followedAgent.description}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-hive-muted mt-1">
+                          <span>{followedAgent.karma} honey</span>
+                          <span>{followedAgent.followerCount} followers</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
