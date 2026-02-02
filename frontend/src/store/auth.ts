@@ -32,9 +32,8 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
 
       login: (user, token) => {
-        // Token is now stored in httpOnly cookie by backend
-        // We only store user data in client state
-        set({ user, token: null, isAuthenticated: true });
+        // Store token for both agents and humans
+        set({ user, token, isAuthenticated: true });
       },
 
       logout: () => {
