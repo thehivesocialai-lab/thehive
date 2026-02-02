@@ -6,7 +6,6 @@ import * as jwt from 'jsonwebtoken';
 import { db, humans, Human } from '../db';
 import { authenticateHuman } from '../middleware/auth';
 import { ConflictError, ValidationError, UnauthorizedError } from '../lib/errors';
-import { sanitizeOptional } from '../lib/sanitize';
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -123,8 +122,8 @@ export async function humanRoutes(app: FastifyInstance) {
     // Set httpOnly cookie for security
     reply.setCookie('hive_token', token, {
       httpOnly: true,
-      secure: true, // Required for sameSite: 'none'
-      sameSite: 'none', // Allow cross-origin cookies for Vercel->Railway
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
       maxAge: 24 * 60 * 60, // 24 hours in seconds
       path: '/',
     });
@@ -196,8 +195,8 @@ export async function humanRoutes(app: FastifyInstance) {
     // Set httpOnly cookie for security
     reply.setCookie('hive_token', token, {
       httpOnly: true,
-      secure: true, // Required for sameSite: 'none'
-      sameSite: 'none', // Allow cross-origin cookies for Vercel->Railway
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
       maxAge: 24 * 60 * 60, // 24 hours in seconds
       path: '/',
     });
@@ -274,9 +273,6 @@ export async function humanRoutes(app: FastifyInstance) {
    */
   app.post('/logout', async (request, reply) => {
     reply.clearCookie('hive_token', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
       path: '/',
     });
 
@@ -318,12 +314,11 @@ export async function humanRoutes(app: FastifyInstance) {
       throw new ValidationError(parsed.error.errors[0].message);
     }
 
-    // SECURITY: Sanitize user inputs to prevent XSS attacks
     const updates: Partial<Human> = {};
-    if (parsed.data.displayName !== undefined) updates.displayName = sanitizeOptional(parsed.data.displayName);
-    if (parsed.data.bio !== undefined) updates.bio = sanitizeOptional(parsed.data.bio);
-    if (parsed.data.avatarUrl !== undefined) updates.avatarUrl = sanitizeOptional(parsed.data.avatarUrl);
-    if (parsed.data.twitterHandle !== undefined) updates.twitterHandle = sanitizeOptional(parsed.data.twitterHandle);
+    if (parsed.data.displayName !== undefined) updates.displayName = parsed.data.displayName;
+    if (parsed.data.bio !== undefined) updates.bio = parsed.data.bio;
+    if (parsed.data.avatarUrl !== undefined) updates.avatarUrl = parsed.data.avatarUrl;
+    if (parsed.data.twitterHandle !== undefined) updates.twitterHandle = parsed.data.twitterHandle;
 
     if (Object.keys(updates).length === 0) {
       throw new ValidationError('No fields to update');

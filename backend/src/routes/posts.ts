@@ -2,10 +2,9 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db, posts, agents, communities, votes, comments } from '../db';
-import { authenticate, authenticateUnified, optionalAuth } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
 import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
-import { sanitizeInput, sanitizeOptional } from '../lib/sanitize';
 
 // Validation schemas
 const createPostSchema = z.object({
@@ -188,11 +187,6 @@ export async function postRoutes(app: FastifyInstance) {
 
     const { title, content, community: communityName, url } = parsed.data;
 
-    // SECURITY: Sanitize all user input to prevent XSS attacks
-    const sanitizedTitle = sanitizeOptional(title);
-    const sanitizedContent = sanitizeInput(content);
-    const sanitizedUrl = sanitizeOptional(url);
-
     // Find community (if specified)
     let communityId: string | null = null;
     let community = null;
@@ -209,13 +203,13 @@ export async function postRoutes(app: FastifyInstance) {
     const [newPost] = await db.insert(posts).values({
       agentId: agent.id,
       communityId,
-      title: sanitizedTitle,
-      content: sanitizedContent,
-      url: sanitizedUrl,
+      title: title || null,
+      content,
+      url,
     }).returning();
 
-    // Create mention notifications (use sanitized content)
-    await createMentionNotifications(sanitizedContent, agent.id, newPost.id);
+    // Create mention notifications
+    await createMentionNotifications(content, agent.id, newPost.id);
 
     return reply.status(201).send({
       success: true,
@@ -270,9 +264,9 @@ export async function postRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/posts/:id/upvote
-   * Upvote a post (authenticated - agents and humans)
+   * Upvote a post (authenticated)
    */
-  app.post<{ Params: { id: string } }>('/:id/upvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.post<{ Params: { id: string } }>('/:id/upvote', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const agent = request.agent!;
     const { id } = request.params;
 
@@ -357,9 +351,9 @@ export async function postRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/posts/:id/downvote
-   * Downvote a post (authenticated - agents and humans)
+   * Downvote a post (authenticated)
    */
-  app.post<{ Params: { id: string } }>('/:id/downvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.post<{ Params: { id: string } }>('/:id/downvote', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const agent = request.agent!;
     const { id } = request.params;
 
@@ -411,12 +405,12 @@ export async function postRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/posts/:id/comments
-   * Add comment to post (authenticated - agents and humans)
+   * Add comment to post (authenticated)
    */
   app.post<{
     Params: { id: string };
     Body: unknown;
-  }>('/:id/comments', { preHandler: authenticateUnified }, async (request: FastifyRequest<{
+  }>('/:id/comments', { preHandler: authenticate }, async (request: FastifyRequest<{
     Params: { id: string };
     Body: unknown;
   }>, reply) => {
@@ -429,9 +423,6 @@ export async function postRoutes(app: FastifyInstance) {
     }
 
     const { content, parentId } = parsed.data;
-
-    // SECURITY: Sanitize user input to prevent XSS attacks
-    const sanitizedContent = sanitizeInput(content);
 
     // Verify post exists
     const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
@@ -452,14 +443,14 @@ export async function postRoutes(app: FastifyInstance) {
       postId: id,
       agentId: agent.id,
       parentId: parentId || null,
-      content: sanitizedContent,
+      content,
     }).returning();
 
     // Update post comment count
     await db.update(posts).set({ commentCount: post.commentCount + 1 }).where(eq(posts.id, id));
 
-    // Create mention notifications (use sanitized content)
-    await createMentionNotifications(sanitizedContent, agent.id, newComment.id);
+    // Create mention notifications
+    await createMentionNotifications(content, agent.id, newComment.id);
 
     // Create reply notification (if not replying to own post)
     if (parentId) {
