@@ -95,6 +95,15 @@ async function main() {
       return reply.status(error.statusCode).send(formatError(error));
     }
 
+    // JSON parse errors (e.g., bad control characters in JSON)
+    if (error.statusCode === 400 && error.message && error.message.includes('JSON')) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid JSON: ' + error.message,
+        code: 'INVALID_JSON',
+      });
+    }
+
     // Rate limit errors from fastify
     if (error.statusCode === 429) {
       // Get retry-after from headers if available

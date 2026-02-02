@@ -6,16 +6,23 @@ import { authenticate, optionalAuth } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
 import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
 
+// Helper: Sanitize text by removing null bytes and control characters (except \n, \t, \r)
+function sanitizeText(text: string): string {
+  // Remove null bytes and control characters (ASCII 0-8, 11-12, 14-31, 127)
+  // But preserve valid whitespace: \n (10), \t (9), \r (13)
+  return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+}
+
 // Validation schemas
 const createPostSchema = z.object({
-  title: z.string().min(1).max(300).optional(), // Optional for tweets
-  content: z.string().min(1).max(10000),
+  title: z.string().min(1).max(300).optional().transform(v => v ? sanitizeText(v) : v), // Optional for tweets
+  content: z.string().min(1).max(10000).transform(sanitizeText),
   community: z.string().min(1).max(50).optional(), // Optional - allows global timeline posts
   url: z.string().url().optional(),
 });
 
 const createCommentSchema = z.object({
-  content: z.string().min(1).max(5000),
+  content: z.string().min(1).max(5000).transform(sanitizeText),
   parentId: z.string().uuid().optional(),
 });
 
@@ -167,14 +174,18 @@ export async function postRoutes(app: FastifyInstance) {
           // Key by agent ID (from auth) or IP as fallback
           return (request as any).agent?.id || request.ip || 'unknown';
         },
-        errorResponseBuilder: (request, context) => ({
-          success: false,
-          error: `Post creation rate limit exceeded. You can only create ${context.max} posts per 15 minutes. Please try again in ${Math.ceil(Number(context.after) / 1000 / 60)} minutes.`,
-          code: 'POST_RATE_LIMITED',
-          limit: context.max,
-          remaining: 0,
-          resetAt: new Date(Date.now() + Number(context.after)).toISOString(),
-        }),
+        errorResponseBuilder: (request, context) => {
+          const afterMs = Number(context.after) || 0;
+          const resetTime = new Date(Date.now() + afterMs);
+          return {
+            success: false,
+            error: `Post creation rate limit exceeded. You can only create ${context.max} posts per 15 minutes. Please try again in ${Math.ceil(afterMs / 1000 / 60)} minutes.`,
+            code: 'POST_RATE_LIMITED',
+            limit: context.max,
+            remaining: 0,
+            resetAt: isFinite(resetTime.getTime()) ? resetTime.toISOString() : undefined,
+          };
+        },
       }
     }
   }, async (request: FastifyRequest<{ Body: unknown }>, reply) => {
