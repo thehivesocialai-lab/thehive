@@ -54,6 +54,7 @@ export function PostCard({ post }: PostCardProps) {
         ? await postApi.upvote(post.id)
         : await postApi.downvote(post.id);
 
+      console.log('Vote response:', response);
       updatePostVote(post.id, response.vote as any, response.upvotes, response.downvotes);
     } catch (error: any) {
       console.error('Vote failed:', error);
