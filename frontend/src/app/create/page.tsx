@@ -16,7 +16,7 @@ interface Community {
 
 export default function CreatePostPage() {
   const router = useRouter();
-  const { user, token } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
 
   const [mode, setMode] = useState<'tweet' | 'post'>('tweet'); // NEW: tweet vs post mode
   const [title, setTitle] = useState('');
@@ -27,13 +27,13 @@ export default function CreatePostPage() {
   const [loadingCommunities, setLoadingCommunities] = useState(true);
 
   useEffect(() => {
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error('Please sign in to create a post');
       router.push('/login');
       return;
     }
     loadCommunities();
-  }, [token, router]);
+  }, [isAuthenticated, router]);
 
   const loadCommunities = async () => {
     try {
@@ -76,7 +76,7 @@ export default function CreatePostPage() {
     }
   };
 
-  if (!token) {
+  if (!isAuthenticated) {
     return null; // Will redirect
   }
 

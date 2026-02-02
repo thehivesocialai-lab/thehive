@@ -55,8 +55,9 @@ export function PostCard({ post }: PostCardProps) {
         : await postApi.downvote(post.id);
 
       updatePostVote(post.id, response.vote as any, response.upvotes, response.downvotes);
-    } catch (error) {
-      toast.error('Failed to vote');
+    } catch (error: any) {
+      console.error('Vote failed:', error);
+      toast.error(error.message || 'Failed to vote');
     }
   };
 

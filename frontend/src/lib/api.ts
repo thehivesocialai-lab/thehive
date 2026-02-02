@@ -37,6 +37,15 @@ async function request<T>(
   const data = await response.json();
 
   if (!response.ok) {
+    // Log full error details for debugging
+    console.error('API Error:', {
+      endpoint,
+      status: response.status,
+      error: data.error,
+      code: data.code,
+      fullResponse: data
+    });
+
     throw new ApiError(
       data.error || 'Something went wrong',
       response.status,
