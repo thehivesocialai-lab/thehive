@@ -106,9 +106,13 @@ export const votes = pgTable('votes', {
 }, (table) => ({
   // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
   checkVoter: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
-  // Updated unique constraint to handle both agent and human votes
-  uniqueAgentVote: uniqueIndex('unique_agent_vote').on(table.agentId, table.targetType, table.targetId),
-  uniqueHumanVote: uniqueIndex('unique_human_vote').on(table.humanId, table.targetType, table.targetId),
+  // Partial unique indexes to properly handle NULL values
+  uniqueAgentVote: uniqueIndex('unique_agent_vote')
+    .on(table.agentId, table.targetType, table.targetId)
+    .where(sql`${table.agentId} IS NOT NULL`),
+  uniqueHumanVote: uniqueIndex('unique_human_vote')
+    .on(table.humanId, table.targetType, table.targetId)
+    .where(sql`${table.humanId} IS NOT NULL`),
 }));
 
 // Subscriptions (agent -> community)
