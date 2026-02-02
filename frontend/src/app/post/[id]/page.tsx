@@ -3,11 +3,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowUp, ArrowDown, MessageSquare, Share2, ArrowLeft, Bot, Loader2, Send } from 'lucide-react';
+import { ArrowUp, ArrowDown, MessageSquare, Share2, ArrowLeft, Bot, Loader2, Send, User, Check, Bookmark } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { postApi } from '@/lib/api';
+import { postApi, pollApi, bookmarkApi } from '@/lib/api';
 import { MarkdownContent } from '@/components/post/MarkdownContent';
 import { EmojiPicker } from '@/components/common/EmojiPicker';
+import { Poll } from '@/components/post/Poll';
 import { useAuthStore } from '@/store/auth';
 
 // Security: Only allow http/https URLs for images
@@ -31,7 +32,18 @@ interface Comment {
   author: {
     id: string;
     name: string;
+    type?: 'agent' | 'human';
   };
+}
+
+interface PollData {
+  id: string;
+  postId: string;
+  expiresAt: string | null;
+  totalVotes: number;
+  isExpired: boolean;
+  options: { id: string; text: string; voteCount: number; percentage: number }[];
+  userVote: string | null;
 }
 
 interface Post {
@@ -46,13 +58,15 @@ interface Post {
   author: {
     id: string;
     name: string;
+    type?: 'agent' | 'human';
   };
   community: {
     name: string;
     displayName: string;
-  };
+  } | null;
   comments: Comment[];
   userVote?: 'up' | 'down' | null;
+  isBookmarked?: boolean;
 }
 
 export default function PostDetailPage() {
@@ -62,12 +76,16 @@ export default function PostDetailPage() {
   const postId = params.id as string;
 
   const [post, setPost] = useState<Post | null>(null);
+  const [poll, setPoll] = useState<PollData | null>(null);
   const [loading, setLoading] = useState(true);
   const [commenting, setCommenting] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [voting, setVoting] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [showCopied, setShowCopied] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const replyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -77,11 +95,20 @@ export default function PostDetailPage() {
 
   const loadPost = async () => {
     try {
-      const response = await postApi.get(postId); // Use .get() which returns post + comments
+      const [postResponse, pollResponse] = await Promise.all([
+        postApi.get(postId),
+        pollApi.get(postId).catch(() => ({ poll: null })),
+      ]);
+
       setPost({
-        ...response.post,
-        comments: response.comments || []
+        ...postResponse.post,
+        comments: postResponse.comments || []
       });
+      setIsBookmarked(postResponse.post.isBookmarked || false);
+
+      if (pollResponse.poll) {
+        setPoll(pollResponse.poll);
+      }
     } catch (error) {
       console.error('Failed to load post:', error);
       toast.error('Failed to load post');
@@ -247,6 +274,60 @@ export default function PostDetailPage() {
     }
   };
 
+  const handleShare = async () => {
+    const url = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post?.title || 'Check out this post on The Hive',
+          text: post?.content.slice(0, 100) + (post?.content.length || 0 > 100 ? '...' : ''),
+          url,
+        });
+        return;
+      } catch {
+        // Fallback to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setShowCopied(true);
+      toast.success('Link copied to clipboard');
+      setTimeout(() => setShowCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!isAuthenticated) {
+      toast.error('Sign in to save posts');
+      return;
+    }
+
+    setBookmarking(true);
+    try {
+      if (isBookmarked) {
+        await bookmarkApi.remove(postId);
+        setIsBookmarked(false);
+        toast.success('Post removed from saved');
+      } else {
+        await bookmarkApi.add(postId);
+        setIsBookmarked(true);
+        toast.success('Post saved');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save post');
+    } finally {
+      setBookmarking(false);
+    }
+  };
+
+  const handlePollVote = (updatedPoll: PollData) => {
+    setPoll(updatedPoll);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -321,7 +402,11 @@ export default function PostDetailPage() {
                 </>
               )}
               <Link href={`/u/${post.author?.name || 'unknown'}`} className="hover:underline flex items-center gap-1">
-                <Bot className="w-3 h-3" />
+                {post.author?.type === 'human' ? (
+                  <User className="w-3 h-3" />
+                ) : (
+                  <Bot className="w-3 h-3" />
+                )}
                 {post.author?.name || 'Deleted User'}
               </Link>
               <span>·</span>
@@ -348,15 +433,35 @@ export default function PostDetailPage() {
               </div>
             )}
 
+            {/* Poll */}
+            {poll && <Poll poll={poll} onVote={handlePollVote} />}
+
             {/* Actions */}
             <div className="flex items-center gap-4 text-sm text-hive-muted">
               <span className="flex items-center gap-1">
                 <MessageSquare className="w-4 h-4" />
                 {post.commentCount} comments
               </span>
-              <button className="flex items-center gap-1 hover:text-hive-text">
-                <Share2 className="w-4 h-4" />
-                Share
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-1 hover:text-honey-600 transition-colors"
+              >
+                {showCopied ? (
+                  <Check className="w-4 h-4 text-green-500" />
+                ) : (
+                  <Share2 className="w-4 h-4" />
+                )}
+                {showCopied ? 'Copied!' : 'Share'}
+              </button>
+              <button
+                onClick={handleBookmark}
+                disabled={bookmarking}
+                className={`flex items-center gap-1 transition-colors disabled:opacity-50 ${
+                  isBookmarked ? 'text-honey-500' : 'hover:text-honey-600'
+                }`}
+              >
+                <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+                {isBookmarked ? 'Saved' : 'Save'}
               </button>
             </div>
           </div>
@@ -417,7 +522,11 @@ export default function PostDetailPage() {
             <div key={comment.id} className="card">
               <div className="flex items-center gap-2 text-sm text-hive-muted mb-2">
                 <Link href={`/u/${comment.author?.name || 'unknown'}`} className="font-medium hover:underline flex items-center gap-1">
-                  <Bot className="w-3 h-3" />
+                  {comment.author?.type === 'human' ? (
+                    <User className="w-3 h-3" />
+                  ) : (
+                    <Bot className="w-3 h-3" />
+                  )}
                   {comment.author?.name || 'Deleted User'}
                 </Link>
                 <span>·</span>

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFeedStore } from '@/store/feed';
 import { PostCard } from '@/components/post/PostCard';
+import { PostSkeletonList } from '@/components/post/PostSkeleton';
 import { Loader2, Flame, Clock, TrendingUp, Sparkles, Scale } from 'lucide-react';
 
 const sortOptions = [
@@ -42,21 +43,21 @@ export function Feed() {
 
   return (
     <div className="space-y-4">
-      {/* Sort Tabs */}
-      <div className="card">
-        <div className="flex gap-2">
+      {/* Sort Tabs - Horizontally scrollable on mobile */}
+      <div className="card overflow-hidden p-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {sortOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => setSort(option.value)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
                 sort === option.value
-                  ? 'bg-honey-500 text-white'
-                  : 'hover:bg-honey-100 dark:hover:bg-honey-900/20'
+                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#F4B942] text-black shadow-md'
+                  : 'hover:bg-honey-100 dark:hover:bg-honey-900/20 text-hive-text'
               }`}
             >
               <option.icon className="w-4 h-4" />
-              {option.label}
+              <span className="hidden sm:inline">{option.label}</span>
             </button>
           ))}
         </div>
@@ -64,12 +65,17 @@ export function Feed() {
 
       {/* Posts */}
       <div className="space-y-4">
+        {/* Initial loading skeleton */}
+        {isLoading && posts.length === 0 && (
+          <PostSkeletonList count={5} />
+        )}
+
         {posts.map((post) => (
           <PostCard key={post.id} post={post} />
         ))}
 
-        {/* Loading indicator */}
-        {isLoading && (
+        {/* Loading more indicator */}
+        {isLoading && posts.length > 0 && (
           <div className="flex justify-center py-8">
             <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
           </div>

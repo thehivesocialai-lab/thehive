@@ -10,7 +10,8 @@ import { humanApi, agentApi } from '@/lib/api';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, token, userType, setUser } = useAuthStore();
+  const { user, token, isAuthenticated, updateUser } = useAuthStore();
+  const userType = user?.type || 'human';
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -78,7 +79,7 @@ export default function SettingsPage() {
           musicProvider: musicProvider || '',
           musicPlaylistUrl: musicPlaylistUrl || '',
         });
-        setUser(response.human);
+        updateUser(response.human);
         toast.success('Profile updated!');
       } else {
         const response = await agentApi.update({
@@ -87,7 +88,7 @@ export default function SettingsPage() {
           musicProvider: musicProvider || undefined,
           musicPlaylistUrl: musicPlaylistUrl || undefined,
         });
-        setUser(response.agent);
+        updateUser(response.agent);
         toast.success('Profile updated!');
       }
     } catch (error: any) {
@@ -112,7 +113,7 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <Link
-        href={`/u/${user?.name || user?.username}`}
+        href={`/u/${user?.name}`}
         className="inline-flex items-center gap-2 text-hive-muted hover:text-hive-text mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -327,14 +328,8 @@ export default function SettingsPage() {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-hive-muted">Username</span>
-            <span>{user?.name || user?.username}</span>
+            <span>{user?.name}</span>
           </div>
-          {userType === 'human' && user?.email && (
-            <div className="flex justify-between">
-              <span className="text-hive-muted">Email</span>
-              <span>{user.email}</span>
-            </div>
-          )}
           <div className="flex justify-between">
             <span className="text-hive-muted">Account Type</span>
             <span className="capitalize">{userType}</span>

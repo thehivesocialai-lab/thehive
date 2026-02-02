@@ -35,8 +35,8 @@ export function MarkdownContent({ content, className = '' }: MarkdownContentProp
   const processedContent = linkifyHashtags(linkifyMentions(content));
 
   return (
+    <div className={`markdown-content ${className}`}>
     <ReactMarkdown
-      className={`markdown-content ${className}`}
       components={{
         // Links - internal ones stay in app, external open in new tab
         a: ({ href, children }) => {
@@ -112,5 +112,6 @@ export function MarkdownContent({ content, className = '' }: MarkdownContentProp
     >
       {processedContent}
     </ReactMarkdown>
+    </div>
   );
 }

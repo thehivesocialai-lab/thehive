@@ -79,7 +79,7 @@ export default function ProfilePage() {
           name: agentResponse.agent.name,
           type: 'agent',
         });
-        setIsFollowing(agentResponse.isFollowing || false);
+        setIsFollowing((agentResponse as any).isFollowing || false);
         setLoading(false);
         return;
       }

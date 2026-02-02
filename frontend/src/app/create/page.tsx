@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Send, Loader2, ArrowLeft, Image } from 'lucide-react';
-import { postApi, communityApi } from '@/lib/api';
+import { Send, Loader2, ArrowLeft, Image, BarChart2, X, Plus } from 'lucide-react';
+import { postApi, communityApi, pollApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { EmojiPicker } from '@/components/common/EmojiPicker';
@@ -28,6 +28,9 @@ export default function CreatePostPage() {
   const [loadingCommunities, setLoadingCommunities] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
   const [showImageInput, setShowImageInput] = useState(false);
+  const [showPollInput, setShowPollInput] = useState(false);
+  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [pollDuration, setPollDuration] = useState<number>(24); // hours
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -64,9 +67,16 @@ export default function CreatePostPage() {
       return;
     }
 
+    // Validate poll if enabled
+    const validPollOptions = pollOptions.filter(opt => opt.trim());
+    if (showPollInput && validPollOptions.length < 2) {
+      toast.error('Poll requires at least 2 options');
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log('Creating post:', { mode, hasTitle: !!title, content: content.trim() });
+      console.log('Creating post:', { mode, hasTitle: !!title, content: content.trim(), hasPoll: showPollInput });
 
       const response = await postApi.create({
         content: content.trim(),
@@ -75,6 +85,20 @@ export default function CreatePostPage() {
         ...(community ? { community } : {}),
         ...(imageUrl.trim() ? { imageUrl: imageUrl.trim() } : {}),
       });
+
+      // Create poll if enabled
+      if (showPollInput && validPollOptions.length >= 2) {
+        try {
+          await pollApi.create({
+            postId: response.post.id,
+            options: validPollOptions,
+            expiresInHours: pollDuration,
+          });
+        } catch (pollError: any) {
+          console.error('Poll creation failed:', pollError);
+          toast.error('Post created but poll failed: ' + (pollError.message || 'Unknown error'));
+        }
+      }
 
       console.log('Post created:', response);
       toast.success(response.message || 'Posted!');
@@ -225,40 +249,123 @@ export default function CreatePostPage() {
           />
         </div>
 
-        {/* Image URL */}
-        <div className="mb-6">
+        {/* Attachments Row */}
+        <div className="flex gap-4 mb-6">
           <button
             type="button"
-            onClick={() => setShowImageInput(!showImageInput)}
-            className="flex items-center gap-2 text-sm text-hive-muted hover:text-honey-500 transition-colors"
+            onClick={() => {
+              setShowImageInput(!showImageInput);
+              if (!showImageInput) setShowPollInput(false);
+            }}
+            className={`flex items-center gap-2 text-sm transition-colors ${
+              showImageInput ? 'text-honey-500' : 'text-hive-muted hover:text-honey-500'
+            }`}
           >
             <Image className="w-4 h-4" />
             {showImageInput ? 'Hide image' : 'Add image'}
           </button>
-          {showImageInput && (
-            <div className="mt-2">
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://i.imgur.com/... or any image URL"
-                className="input w-full"
-              />
-              {imageUrl && (
-                <div className="mt-2 relative">
-                  <img
-                    src={imageUrl}
-                    alt="Preview"
-                    className="max-h-48 rounded-lg object-contain bg-hive-hover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setShowPollInput(!showPollInput);
+              if (!showPollInput) setShowImageInput(false);
+            }}
+            className={`flex items-center gap-2 text-sm transition-colors ${
+              showPollInput ? 'text-honey-500' : 'text-hive-muted hover:text-honey-500'
+            }`}
+          >
+            <BarChart2 className="w-4 h-4" />
+            {showPollInput ? 'Hide poll' : 'Add poll'}
+          </button>
         </div>
+
+        {/* Image URL */}
+        {showImageInput && (
+          <div className="mb-6 p-4 border border-hive-border rounded-lg bg-hive-card/50">
+            <input
+              type="url"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://i.imgur.com/... or any image URL"
+              className="input w-full"
+            />
+            {imageUrl && (
+              <div className="mt-2 relative">
+                <img
+                  src={imageUrl}
+                  alt="Preview"
+                  className="max-h-48 rounded-lg object-contain bg-hive-hover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Poll Options */}
+        {showPollInput && (
+          <div className="mb-6 p-4 border border-hive-border rounded-lg bg-hive-card/50">
+            <h4 className="font-medium mb-3 flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-honey-500" />
+              Poll Options
+            </h4>
+            <div className="space-y-2">
+              {pollOptions.map((option, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={option}
+                    onChange={(e) => {
+                      const newOptions = [...pollOptions];
+                      newOptions[index] = e.target.value;
+                      setPollOptions(newOptions);
+                    }}
+                    placeholder={`Option ${index + 1}`}
+                    className="input flex-1"
+                    maxLength={100}
+                  />
+                  {pollOptions.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPollOptions(pollOptions.filter((_, i) => i !== index));
+                      }}
+                      className="p-2 text-hive-muted hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {pollOptions.length < 4 && (
+              <button
+                type="button"
+                onClick={() => setPollOptions([...pollOptions, ''])}
+                className="mt-2 flex items-center gap-1 text-sm text-honey-500 hover:text-honey-600 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add option
+              </button>
+            )}
+            <div className="mt-4">
+              <label className="block text-sm text-hive-muted mb-2">Poll duration</label>
+              <select
+                value={pollDuration}
+                onChange={(e) => setPollDuration(Number(e.target.value))}
+                className="input w-full max-w-xs"
+              >
+                <option value={1}>1 hour</option>
+                <option value={6}>6 hours</option>
+                <option value={24}>1 day</option>
+                <option value={72}>3 days</option>
+                <option value={168}>1 week</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex items-center justify-between">

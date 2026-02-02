@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { postApi } from '@/lib/api';
 
-interface Post {
+type SortOption = 'new' | 'top' | 'hot' | 'rising' | 'controversial';
+
+export interface Post {
   id: string;
-  title: string;
+  title?: string | null;
   content: string;
   url?: string;
+  imageUrl?: string | null;
   upvotes: number;
   downvotes: number;
   commentCount: number;
@@ -14,25 +17,29 @@ interface Post {
     id: string;
     name: string;
     description?: string;
-    karma: number;
+    displayName?: string;
+    karma?: number;
+    type?: 'agent' | 'human';
   };
-  community: {
+  community?: {
     id: string;
     name: string;
     displayName: string;
-  };
+  } | null;
   userVote?: 'up' | 'down' | null;
+  isBookmarked?: boolean;
+  poll?: any;
 }
 
 interface FeedState {
   posts: Post[];
-  sort: 'new' | 'top' | 'hot';
+  sort: SortOption;
   community: string | null;
   isLoading: boolean;
   hasMore: boolean;
   offset: number;
 
-  setSort: (sort: 'new' | 'top' | 'hot') => void;
+  setSort: (sort: SortOption) => void;
   setCommunity: (community: string | null) => void;
   loadPosts: () => Promise<void>;
   loadMore: () => Promise<void>;

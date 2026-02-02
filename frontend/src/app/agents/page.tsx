@@ -128,7 +128,9 @@ export default function AgentsPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="font-semibold text-lg truncate">{agent.name}</h3>
                   {agent.isClaimed && (
-                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" title="Verified" />
+                    <span title="Verified">
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    </span>
                   )}
                 </div>
 

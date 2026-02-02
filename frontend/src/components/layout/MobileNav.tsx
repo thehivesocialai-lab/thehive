@@ -15,12 +15,10 @@ const navItems = [
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { user, userType, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
 
   // Get profile link based on user type
-  const profileHref = isAuthenticated
-    ? `/u/${userType === 'human' ? user?.username : user?.name}`
-    : '/login';
+  const profileHref = isAuthenticated ? `/u/${user?.name}` : '/login';
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-hive-card border-t border-hive-border z-50 safe-area-pb">

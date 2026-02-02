@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bot, User, Coins, Bookmark } from 'lucide-react';
+import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bot, User, Coins, Bookmark, Check } from 'lucide-react';
 import { useFeedStore } from '@/store/feed';
 import { useAuthStore } from '@/store/auth';
 import { postApi, bookmarkApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { LinkPreview } from './LinkPreview';
 import { MarkdownContent } from './MarkdownContent';
+import { Poll } from './Poll';
 
 // Security: Only allow http/https URLs for images
 function isSafeImageUrl(url: string | null | undefined): boolean {
@@ -20,6 +21,16 @@ function isSafeImageUrl(url: string | null | undefined): boolean {
   } catch {
     return false;
   }
+}
+
+interface PollData {
+  id: string;
+  postId: string;
+  expiresAt: string | null;
+  totalVotes: number;
+  isExpired: boolean;
+  options: { id: string; text: string; voteCount: number; percentage: number }[];
+  userVote: string | null;
 }
 
 interface PostCardProps {
@@ -39,15 +50,16 @@ interface PostCardProps {
       description?: string;
       displayName?: string;
       karma?: number;
-      type: 'agent' | 'human';
+      type?: 'agent' | 'human';
     };
     community?: { // Optional for global timeline posts
-      id: string;
+      id?: string;
       name: string;
       displayName: string;
     } | null;
     userVote?: 'up' | 'down' | null;
     isBookmarked?: boolean; // Whether the current user has bookmarked this post
+    poll?: PollData | null; // Optional poll attached to post
   };
   onBookmarkRemove?: () => void; // Callback when bookmark is removed (for saved page)
 }
@@ -58,6 +70,8 @@ export function PostCard({ post, onBookmarkRemove }: PostCardProps) {
   const [tipping, setTipping] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked || false);
   const [bookmarking, setBookmarking] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
+  const [poll, setPoll] = useState<PollData | null>(post.poll || null);
 
   const score = post.upvotes - post.downvotes;
   const isUpvoted = post.userVote === 'up';
@@ -136,8 +150,40 @@ export function PostCard({ post, onBookmarkRemove }: PostCardProps) {
     }
   };
 
+  const handleShare = async () => {
+    const url = `${window.location.origin}/post/${post.id}`;
+
+    // Try native share first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post.title || 'Check out this post on The Hive',
+          text: post.content.slice(0, 100) + (post.content.length > 100 ? '...' : ''),
+          url,
+        });
+        return;
+      } catch (err) {
+        // User cancelled or share failed, fall back to clipboard
+      }
+    }
+
+    // Fall back to clipboard copy
+    try {
+      await navigator.clipboard.writeText(url);
+      setShowCopied(true);
+      toast.success('Link copied to clipboard');
+      setTimeout(() => setShowCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  const handlePollVote = (updatedPoll: PollData) => {
+    setPoll(updatedPoll);
+  };
+
   return (
-    <article className="card hover:border-honey-300 transition-colors">
+    <article className="card hover:border-honey-300 transition-all animate-fade-in">
       <div className="flex gap-4">
         {/* Vote Column */}
         <div className="flex flex-col items-center gap-1">
@@ -225,6 +271,9 @@ export function PostCard({ post, onBookmarkRemove }: PostCardProps) {
           {/* Link Preview */}
           {post.url && <LinkPreview url={post.url} />}
 
+          {/* Poll */}
+          {poll && <Poll poll={poll} onVote={handlePollVote} />}
+
           {/* Actions */}
           <div className="flex items-center gap-4 text-sm text-hive-muted">
             <Link
@@ -245,9 +294,16 @@ export function PostCard({ post, onBookmarkRemove }: PostCardProps) {
                 Tip
               </button>
             )}
-            <button className="flex items-center gap-1 hover:text-honey-600 transition-colors">
-              <Share2 className="w-4 h-4" />
-              Share
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1 hover:text-honey-600 transition-colors"
+            >
+              {showCopied ? (
+                <Check className="w-4 h-4 text-green-500" />
+              ) : (
+                <Share2 className="w-4 h-4" />
+              )}
+              {showCopied ? 'Copied!' : 'Share'}
             </button>
             <button
               onClick={handleBookmark}

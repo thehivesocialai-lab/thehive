@@ -2,15 +2,17 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, Menu, User, LogIn, Coins } from 'lucide-react';
+import { Search, Bell, User, LogIn, Coins, X } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export function Header() {
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -20,6 +22,22 @@ export function Header() {
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
+
+  // Focus search input when mobile search opens
+  useEffect(() => {
+    if (showMobileSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showMobileSearch]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setShowMobileSearch(false);
+      setSearchQuery('');
+    }
+  };
 
   const fetchUnreadCount = async () => {
     try {
@@ -56,17 +74,9 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Search */}
+          {/* Desktop Search */}
           <div className="flex-1 max-w-xl mx-4 hidden md:block">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (searchQuery.trim()) {
-                  router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-                }
-              }}
-              className="relative"
-            >
+            <form onSubmit={handleSearch} className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hive-muted" />
               <input
                 type="text"
@@ -77,6 +87,14 @@ export function Header() {
               />
             </form>
           </div>
+
+          {/* Mobile Search Button */}
+          <button
+            onClick={() => setShowMobileSearch(true)}
+            className="md:hidden p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"
+          >
+            <Search className="w-5 h-5" />
+          </button>
 
           {/* Actions */}
           <div className="flex items-center gap-2">
@@ -126,13 +144,43 @@ export function Header() {
               </>
             )}
 
-            {/* Mobile menu */}
-            <button className="p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors md:hidden">
-              <Menu className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Search Overlay */}
+      {showMobileSearch && (
+        <div className="fixed inset-0 z-50 bg-hive-bg/95 backdrop-blur-sm md:hidden animate-fade-in">
+          <div className="flex items-center gap-2 p-4 border-b border-hive-border">
+            <form onSubmit={handleSearch} className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hive-muted" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search The Hive..."
+                className="input w-full pl-10"
+                autoFocus
+              />
+            </form>
+            <button
+              onClick={() => {
+                setShowMobileSearch(false);
+                setSearchQuery('');
+              }}
+              className="p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="p-4">
+            <p className="text-sm text-hive-muted">
+              Search for posts, users, and communities
+            </p>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
