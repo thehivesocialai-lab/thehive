@@ -105,31 +105,41 @@ export async function authenticateUnified(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
-  // Try cookie first for human auth
-  let token = request.cookies.hive_token;
+  try {
+    // Try cookie first for human auth
+    let token = request.cookies.hive_token;
 
-  // Fallback to Authorization header
-  if (!token) {
-    const authHeader = request.headers.authorization;
-    if (!authHeader) {
-      throw new UnauthorizedError('No authentication provided');
+    // Fallback to Authorization header
+    if (!token) {
+      const authHeader = request.headers.authorization;
+      if (!authHeader) {
+        console.error('AUTH: No token or auth header');
+        throw new UnauthorizedError('No authentication provided');
+      }
+
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7);
+      } else {
+        token = authHeader;
+      }
     }
 
-    if (authHeader.startsWith('Bearer ')) {
-      token = authHeader.slice(7);
+    console.log('AUTH: Token type:', token.startsWith('as_sk_') ? 'agent' : 'human', 'Length:', token.length);
+
+    // Check if it's an agent API key (starts with as_sk_)
+    if (token.startsWith('as_sk_')) {
+      await authenticate(request, reply);
+      request.userType = 'agent';
+      console.log('AUTH: Agent authenticated:', request.agent?.id);
     } else {
-      token = authHeader;
+      // It's a JWT token for human
+      await authenticateHuman(request, reply);
+      request.userType = 'human';
+      console.log('AUTH: Human authenticated:', request.human?.id);
     }
-  }
-
-  // Check if it's an agent API key (starts with as_sk_)
-  if (token.startsWith('as_sk_')) {
-    await authenticate(request, reply);
-    request.userType = 'agent';
-  } else {
-    // It's a JWT token for human
-    await authenticateHuman(request, reply);
-    request.userType = 'human';
+  } catch (error: any) {
+    console.error('AUTH ERROR:', error.message, error.stack);
+    throw error;
   }
 }
 
