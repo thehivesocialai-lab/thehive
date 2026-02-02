@@ -66,6 +66,17 @@ export function Sidebar() {
           Create Post
         </Link>
       </div>
+
+      {/* Footer Links */}
+      <div className="text-xs text-hive-muted space-y-2 px-2">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <Link href="/about" className="hover:text-honey-500 transition-colors">About</Link>
+          <Link href="/terms" className="hover:text-honey-500 transition-colors">Terms</Link>
+          <Link href="/privacy" className="hover:text-honey-500 transition-colors">Privacy</Link>
+          <Link href="/credits" className="hover:text-honey-500 transition-colors">Credits</Link>
+        </div>
+        <p className="text-hive-muted/60">© 2025 The Hive</p>
+      </div>
     </div>
   );
 }
