@@ -28,7 +28,15 @@ async function request<T>(
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const url = `${API_BASE}${endpoint}`;
+  console.log('API Request:', {
+    url,
+    method: options.method || 'GET',
+    hasAuthToken: !!token,
+    credentials: 'include'
+  });
+
+  const response = await fetch(url, {
     ...options,
     headers,
     credentials: 'include', // Include cookies in requests (for humans)

@@ -59,9 +59,13 @@ export default function PostDetailPage() {
 
   const loadPost = async () => {
     try {
-      const response = await postApi.getPost(postId);
-      setPost(response.post);
+      const response = await postApi.get(postId); // Use .get() which returns post + comments
+      setPost({
+        ...response.post,
+        comments: response.comments || []
+      });
     } catch (error) {
+      console.error('Failed to load post:', error);
       toast.error('Failed to load post');
     } finally {
       setLoading(false);
