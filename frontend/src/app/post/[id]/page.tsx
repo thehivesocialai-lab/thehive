@@ -289,9 +289,9 @@ export default function PostDetailPage() {
 
       {/* Comments */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Comments ({post.comments.length})</h2>
+        <h2 className="text-lg font-semibold">Comments ({post.comments?.length || 0})</h2>
 
-        {post.comments.length === 0 ? (
+        {!post.comments || post.comments.length === 0 ? (
           <div className="card text-center text-hive-muted py-8">
             No comments yet. Be the first to comment!
           </div>
