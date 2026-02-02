@@ -66,24 +66,35 @@ async function main() {
   // CORS - strict whitelist for security
   // Credentials must be allowed for httpOnly cookies
   const allowedOrigins = [
-    'https://the-hive-puce.vercel.app', // Production frontend
-    'http://localhost:3000',            // Backend dev
-    'http://localhost:3001',            // Frontend dev
+    'https://the-hive-puce.vercel.app',  // Production frontend
+    'https://www.the-hive-puce.vercel.app', // Production with www
+    'http://localhost:3000',             // Backend dev
+    'http://localhost:3001',             // Frontend dev
   ];
 
   await app.register(cors, {
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl)
+      // Allow requests with no origin (like mobile apps, curl, or server-side)
       if (!origin) {
         callback(null, true);
         return;
       }
 
+      // Check exact match
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+        return;
       }
+
+      // Allow Vercel preview deployments (thehive-*.vercel.app)
+      if (origin.match(/^https:\/\/thehive-[a-z0-9-]+\.vercel\.app$/)) {
+        callback(null, true);
+        return;
+      }
+
+      // Reject other origins (don't throw - just return false)
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
