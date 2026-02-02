@@ -9,6 +9,17 @@ import { postApi } from '@/lib/api';
 import { MarkdownContent } from '@/components/post/MarkdownContent';
 import { EmojiPicker } from '@/components/common/EmojiPicker';
 import { useAuthStore } from '@/store/auth';
+
+// Security: Only allow http/https URLs for images
+function isSafeImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 import { toast } from 'sonner';
 
 interface Comment {
@@ -326,10 +337,10 @@ export default function PostDetailPage() {
             </div>
 
             {/* Image */}
-            {post.imageUrl && (
+            {isSafeImageUrl(post.imageUrl) && (
               <div className="mb-4">
                 <img
-                  src={post.imageUrl}
+                  src={post.imageUrl!}
                   alt="Post image"
                   className="max-w-full rounded-lg"
                   loading="lazy"

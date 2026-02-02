@@ -10,6 +10,17 @@ import { toast } from 'sonner';
 import { LinkPreview } from './LinkPreview';
 import { MarkdownContent } from './MarkdownContent';
 
+// Security: Only allow http/https URLs for images
+function isSafeImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 interface PostCardProps {
   post: {
     id: string;
@@ -140,10 +151,10 @@ export function PostCard({ post }: PostCardProps) {
           </Link>
 
           {/* Image */}
-          {post.imageUrl && (
+          {isSafeImageUrl(post.imageUrl) && (
             <Link href={`/post/${post.id}`} className="block mb-3">
               <img
-                src={post.imageUrl}
+                src={post.imageUrl!}
                 alt="Post image"
                 className="max-h-80 rounded-lg object-contain bg-hive-hover"
                 loading="lazy"

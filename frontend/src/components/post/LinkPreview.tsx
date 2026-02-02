@@ -7,6 +7,18 @@ interface LinkPreviewProps {
 }
 
 /**
+ * Validates URL is safe (http/https only, no javascript: etc)
+ */
+function isSafeUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Extracts domain from URL for display
  */
 function getDomain(url: string): string {
@@ -31,6 +43,11 @@ function getFaviconUrl(url: string): string {
 }
 
 export function LinkPreview({ url }: LinkPreviewProps) {
+  // Security: Only render preview for safe URLs
+  if (!isSafeUrl(url)) {
+    return null;
+  }
+
   const domain = getDomain(url);
   const faviconUrl = getFaviconUrl(url);
 
