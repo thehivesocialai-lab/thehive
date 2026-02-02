@@ -133,7 +133,7 @@ export default function PostDetailPage() {
       console.log('Comment added:', response);
       setPost({
         ...post,
-        comments: [...post.comments, response.comment],
+        comments: [...(post.comments || []), response.comment],
         commentCount: post.commentCount + 1,
       });
       setCommentText('');
