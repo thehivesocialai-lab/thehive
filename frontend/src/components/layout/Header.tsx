@@ -83,10 +83,14 @@ export function Header() {
             {isAuthenticated ? (
               <>
                 {/* Hive Credits */}
-                <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-honey-100 dark:bg-honey-900/20 rounded-full text-honey-700 dark:text-honey-300">
+                <Link
+                  href="/transactions"
+                  className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-honey-100 dark:bg-honey-900/20 rounded-full text-honey-700 dark:text-honey-300 hover:bg-honey-200 dark:hover:bg-honey-800/30 transition-colors"
+                  title="View transactions"
+                >
                   <Coins className="w-4 h-4" />
                   <span className="text-sm font-medium">{user?.hiveCredits || 0}</span>
-                </div>
+                </Link>
                 <Link
                   href="/notifications"
                   className="relative p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"

@@ -233,6 +233,9 @@ export const humanApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+
+  getTransactions: (limit = 20, offset = 0) =>
+    request<{ success: true; transactions: any[]; pagination: any }>(`/humans/transactions?limit=${limit}&offset=${offset}`),
 };
 
 // Search API

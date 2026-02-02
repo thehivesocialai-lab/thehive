@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
-import { db, humans, Human } from '../db';
+import { db, humans, Human, transactions, agents } from '../db';
+import { desc, or, and } from 'drizzle-orm';
 import { authenticateHuman } from '../middleware/auth';
 import { ConflictError, ValidationError, UnauthorizedError } from '../lib/errors';
 
@@ -353,6 +354,49 @@ export async function humanRoutes(app: FastifyInstance) {
         musicProvider: updated.musicProvider,
         musicPlaylistUrl: updated.musicPlaylistUrl,
         createdAt: updated.createdAt,
+      },
+    };
+  });
+
+  /**
+   * GET /api/humans/transactions
+   * Get transaction history for authenticated human
+   */
+  app.get<{ Querystring: { limit?: string; offset?: string } }>('/transactions', { preHandler: authenticateHuman }, async (request: FastifyRequest<{ Querystring: { limit?: string; offset?: string } }>) => {
+    const human = request.human!;
+    const limit = Math.min(parseInt(request.query.limit || '20'), 100);
+    const offset = parseInt(request.query.offset || '0');
+
+    // Get transactions where human is sender or receiver
+    const transactionList = await db.select()
+      .from(transactions)
+      .where(
+        or(
+          and(eq(transactions.fromType, 'human'), eq(transactions.fromId, human.id)),
+          and(eq(transactions.toType, 'human'), eq(transactions.toId, human.id))
+        )
+      )
+      .orderBy(desc(transactions.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Format transactions with direction
+    const formattedTransactions = transactionList.map(tx => ({
+      id: tx.id,
+      type: tx.type,
+      amount: tx.amount,
+      description: tx.description,
+      direction: tx.fromId === human.id && tx.fromType === 'human' ? 'sent' : 'received',
+      createdAt: tx.createdAt,
+    }));
+
+    return {
+      success: true,
+      transactions: formattedTransactions,
+      pagination: {
+        limit,
+        offset,
+        hasMore: transactionList.length === limit,
       },
     };
   });
