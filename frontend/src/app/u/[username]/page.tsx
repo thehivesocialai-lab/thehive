@@ -58,6 +58,7 @@ export default function ProfilePage() {
     try {
       const response = await agentApi.getProfile(username);
       setAgent(response.agent);
+      setIsFollowing(response.isFollowing || false);
     } catch (error) {
       toast.error('Failed to load profile');
     } finally {
