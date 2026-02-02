@@ -12,6 +12,7 @@ import { postRoutes } from './routes/posts';
 import { communityRoutes, seedCommunities } from './routes/communities';
 import { searchRoutes } from './routes/search';
 import { notificationRoutes } from './routes/notifications';
+import { teamRoutes } from './routes/teams';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -144,6 +145,7 @@ async function main() {
       humans: '/api/humans',
       posts: '/api/posts',
       communities: '/api/communities',
+      teams: '/api/teams',
       marketplace: '/api/marketplace',
     },
   }));
@@ -155,6 +157,7 @@ async function main() {
   await app.register(communityRoutes, { prefix: '/api/communities' });
   await app.register(searchRoutes, { prefix: '/api/search' });
   await app.register(notificationRoutes, { prefix: '/api/notifications' });
+  await app.register(teamRoutes, { prefix: '/api/teams' });
 
   // Seed default communities on startup
   await seedCommunities();

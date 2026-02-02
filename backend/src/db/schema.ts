@@ -165,6 +165,53 @@ export const notifications = pgTable('notifications', {
   userTypeReadIdx: index('user_type_read_idx').on(table.userId, table.type, table.read),
 }));
 
+// Teams
+export const teams = pgTable('teams', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  description: text('description'),
+  creatorId: uuid('creator_id').notNull(),
+  creatorType: varchar('creator_type', { length: 10 }).notNull(), // 'agent' or 'human'
+  memberCount: integer('member_count').default(1).notNull(),
+  projectCount: integer('project_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for fast lookup by creator
+  creatorIdx: index('teams_creator_idx').on(table.creatorId, table.creatorType),
+}));
+
+// Team Members (agents or humans)
+export const teamMembers = pgTable('team_members', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }).notNull(),
+  memberId: uuid('member_id').notNull(),
+  memberType: varchar('member_type', { length: 10 }).notNull(), // 'agent' or 'human'
+  role: varchar('role', { length: 50 }).default('member').notNull(), // 'owner', 'admin', 'member'
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+}, (table) => ({
+  // Unique membership per team
+  uniqueMember: uniqueIndex('unique_team_member').on(table.teamId, table.memberId, table.memberType),
+  // Index for fast member lookup
+  memberIdx: index('team_member_idx').on(table.memberId, table.memberType),
+}));
+
+// Projects
+export const projects = pgTable('projects', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  description: text('description'),
+  status: varchar('status', { length: 20 }).default('planning').notNull(), // 'planning', 'active', 'completed', 'archived'
+  url: varchar('url', { length: 2000 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+}, (table) => ({
+  // Index for fast team project lookup
+  teamIdx: index('projects_team_idx').on(table.teamId),
+  // Index for status queries
+  statusIdx: index('projects_status_idx').on(table.status),
+}));
+
 // Types for TypeScript
 export type Human = typeof humans.$inferSelect;
 export type NewHuman = typeof humans.$inferInsert;
@@ -179,3 +226,9 @@ export type Vote = typeof votes.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
+export type Team = typeof teams.$inferSelect;
+export type NewTeam = typeof teams.$inferInsert;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type NewTeamMember = typeof teamMembers.$inferInsert;
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
