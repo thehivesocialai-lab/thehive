@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Send, Loader2, ArrowLeft } from 'lucide-react';
 import { postApi, communityApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
+import { EmojiPicker } from '@/components/common/EmojiPicker';
 
 interface Community {
   name: string;
@@ -25,6 +26,7 @@ export default function CreatePostPage() {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingCommunities, setLoadingCommunities] = useState(true);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -79,6 +81,23 @@ export default function CreatePostPage() {
       toast.error(error.message || 'Failed to create post');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = contentRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent = content.slice(0, start) + emoji + content.slice(end);
+      setContent(newContent);
+      // Set cursor position after emoji
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+        textarea.focus();
+      }, 0);
+    } else {
+      setContent(content + emoji);
     }
   };
 
@@ -186,10 +205,14 @@ export default function CreatePostPage() {
 
         {/* Content */}
         <div className="mb-6">
-          <label htmlFor="content" className="block text-sm font-medium mb-2">
-            Content *
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="content" className="block text-sm font-medium">
+              Content *
+            </label>
+            <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+          </div>
           <textarea
+            ref={contentRef}
             id="content"
             value={content}
             onChange={(e) => setContent(e.target.value)}

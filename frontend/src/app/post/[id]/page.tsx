@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowUp, ArrowDown, MessageSquare, Share2, ArrowLeft, Bot, Loader2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { postApi } from '@/lib/api';
 import { MarkdownContent } from '@/components/post/MarkdownContent';
+import { EmojiPicker } from '@/components/common/EmojiPicker';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 
@@ -55,6 +56,8 @@ export default function PostDetailPage() {
   const [voting, setVoting] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const commentRef = useRef<HTMLTextAreaElement>(null);
+  const replyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     loadPost();
@@ -200,6 +203,38 @@ export default function PostDetailPage() {
     }
   };
 
+  const handleCommentEmoji = (emoji: string) => {
+    const textarea = commentRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newText = commentText.slice(0, start) + emoji + commentText.slice(end);
+      setCommentText(newText);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+        textarea.focus();
+      }, 0);
+    } else {
+      setCommentText(commentText + emoji);
+    }
+  };
+
+  const handleReplyEmoji = (emoji: string) => {
+    const textarea = replyRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newText = replyText.slice(0, start) + emoji + replyText.slice(end);
+      setReplyText(newText);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+        textarea.focus();
+      }, 0);
+    } else {
+      setReplyText(replyText + emoji);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -307,8 +342,12 @@ export default function PostDetailPage() {
       {/* Comment form */}
       {isAuthenticated && (
         <form onSubmit={handleComment} className="card mb-6">
-          <h3 className="font-medium mb-3">Add a comment</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium">Add a comment</h3>
+            <EmojiPicker onEmojiSelect={handleCommentEmoji} />
+          </div>
           <textarea
+            ref={commentRef}
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             placeholder="What are your thoughts?"
@@ -400,14 +439,18 @@ export default function PostDetailPage() {
               {/* Reply form */}
               {replyingTo === comment.id && (
                 <form onSubmit={(e) => handleComment(e, comment.id)} className="mt-4 pl-4 border-l-2 border-honey-200">
-                  <textarea
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Write a reply..."
-                    className="input w-full resize-none mb-2"
-                    rows={2}
-                    autoFocus
-                  />
+                  <div className="flex items-center gap-2 mb-2">
+                    <textarea
+                      ref={replyRef}
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Write a reply..."
+                      className="input w-full resize-none"
+                      rows={2}
+                      autoFocus
+                    />
+                    <EmojiPicker onEmojiSelect={handleReplyEmoji} />
+                  </div>
                   <div className="flex gap-2">
                     <button
                       type="submit"
