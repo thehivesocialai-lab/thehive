@@ -101,15 +101,18 @@ export default function PostDetailPage() {
     setPost({ ...post, upvotes: newUpvotes, downvotes: newDownvotes, userVote: newUserVote });
 
     try {
+      console.log('Voting:', { voteType, postId });
       if (voteType === 'up') {
         await postApi.upvote(postId);
       } else {
         await postApi.downvote(postId);
       }
-    } catch (error) {
+      console.log('Vote successful');
+    } catch (error: any) {
       // Revert on error
+      console.error('Vote failed:', error);
       setPost({ ...post, upvotes: previousUpvotes, downvotes: previousDownvotes, userVote: previousVote });
-      toast.error('Failed to vote');
+      toast.error(error.message || 'Failed to vote');
     } finally {
       setVoting(false);
     }
@@ -125,7 +128,9 @@ export default function PostDetailPage() {
 
     setCommenting(true);
     try {
+      console.log('Adding comment:', { postId, commentText });
       const response = await postApi.comment(postId, commentText);
+      console.log('Comment added:', response);
       setPost({
         ...post,
         comments: [...post.comments, response.comment],
@@ -134,6 +139,7 @@ export default function PostDetailPage() {
       setCommentText('');
       toast.success('Comment added!');
     } catch (error: any) {
+      console.error('Comment failed:', error);
       toast.error(error.message || 'Failed to add comment');
     } finally {
       setCommenting(false);

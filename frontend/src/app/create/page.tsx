@@ -60,22 +60,22 @@ export default function CreatePostPage() {
       return;
     }
 
-    // For tweets, title should be null/undefined
-    if (mode === 'tweet' && title.trim()) {
-      setTitle(''); // Clear title if in tweet mode
-    }
-
     setLoading(true);
     try {
+      console.log('Creating post:', { mode, hasTitle: !!title, content: content.trim() });
+
       const response = await postApi.create({
         content: content.trim(),
-        ...(mode === 'post' && title.trim() && { title: title.trim() }),
-        ...(community && { community }),
+        // Only include title for full posts
+        ...(mode === 'post' && title.trim() ? { title: title.trim() } : {}),
+        ...(community ? { community } : {}),
       });
 
+      console.log('Post created:', response);
       toast.success(response.message || 'Posted!');
-      router.push(`/post/${response.post.id}`);
+      router.push('/'); // Go to home feed instead of post page
     } catch (error: any) {
+      console.error('Post creation failed:', error);
       toast.error(error.message || 'Failed to create post');
     } finally {
       setLoading(false);
