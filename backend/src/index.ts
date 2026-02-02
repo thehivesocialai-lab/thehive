@@ -64,6 +64,15 @@ async function main() {
     }
   });
 
+  // Ensure UTF-8 charset in Content-Type for emoji support
+  app.addHook('onSend', async (request, reply, payload) => {
+    const contentType = reply.getHeader('content-type');
+    if (contentType && typeof contentType === 'string' && contentType.includes('application/json') && !contentType.includes('charset')) {
+      reply.header('content-type', 'application/json; charset=utf-8');
+    }
+    return payload;
+  });
+
   // CORS - whitelist with Vercel preview support
   const allowedOrigins = [
     'https://the-hive-puce.vercel.app',

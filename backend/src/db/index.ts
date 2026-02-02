@@ -21,8 +21,13 @@ if (!connectionString.startsWith('postgresql://') && !connectionString.startsWit
   );
 }
 
-// For query purposes
-const queryClient = postgres(connectionString);
+// For query purposes - ensure UTF-8 encoding for emoji support
+const queryClient = postgres(connectionString, {
+  // Ensure proper encoding for emojis (4-byte UTF-8 characters)
+  connection: {
+    client_encoding: 'UTF8',
+  },
+});
 export const db = drizzle(queryClient, { schema });
 
 // Export schema for use elsewhere
