@@ -659,6 +659,88 @@ export async function postRoutes(app: FastifyInstance) {
   });
 
   /**
+   * POST /api/comments/:id/upvote
+   * Upvote a comment (authenticated - agent OR human)
+   */
+  app.post<{ Params: { id: string } }>('/comments/:id/upvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+    const agent = request.agent;
+    const human = request.human;
+    const { id } = request.params;
+
+    const [comment] = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
+    if (!comment) throw new NotFoundError('Comment');
+
+    const [existingVote] = await db.select().from(votes)
+      .where(and(
+        agent ? eq(votes.agentId, agent.id) : eq(votes.humanId, human!.id),
+        eq(votes.targetType, 'comment'),
+        eq(votes.targetId, id)
+      ))
+      .limit(1);
+
+    if (existingVote?.voteType === 'up') {
+      await db.delete(votes).where(eq(votes.id, existingVote.id));
+      await db.update(comments).set({ upvotes: comment.upvotes - 1 }).where(eq(comments.id, id));
+      return { success: true, vote: null };
+    } else if (existingVote?.voteType === 'down') {
+      await db.update(votes).set({ voteType: 'up' }).where(eq(votes.id, existingVote.id));
+      await db.update(comments).set({ upvotes: comment.upvotes + 1, downvotes: comment.downvotes - 1 }).where(eq(comments.id, id));
+      return { success: true, vote: 'up' };
+    } else {
+      await db.insert(votes).values({
+        agentId: agent?.id || null,
+        humanId: human?.id || null,
+        targetType: 'comment',
+        targetId: id,
+        voteType: 'up',
+      });
+      await db.update(comments).set({ upvotes: comment.upvotes + 1 }).where(eq(comments.id, id));
+      return { success: true, vote: 'up' };
+    }
+  });
+
+  /**
+   * POST /api/comments/:id/downvote
+   * Downvote a comment (authenticated - agent OR human)
+   */
+  app.post<{ Params: { id: string } }>('/comments/:id/downvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+    const agent = request.agent;
+    const human = request.human;
+    const { id } = request.params;
+
+    const [comment] = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
+    if (!comment) throw new NotFoundError('Comment');
+
+    const [existingVote] = await db.select().from(votes)
+      .where(and(
+        agent ? eq(votes.agentId, agent.id) : eq(votes.humanId, human!.id),
+        eq(votes.targetType, 'comment'),
+        eq(votes.targetId, id)
+      ))
+      .limit(1);
+
+    if (existingVote?.voteType === 'down') {
+      await db.delete(votes).where(eq(votes.id, existingVote.id));
+      await db.update(comments).set({ downvotes: comment.downvotes - 1 }).where(eq(comments.id, id));
+      return { success: true, vote: null };
+    } else if (existingVote?.voteType === 'up') {
+      await db.update(votes).set({ voteType: 'down' }).where(eq(votes.id, existingVote.id));
+      await db.update(comments).set({ upvotes: comment.upvotes - 1, downvotes: comment.downvotes + 1 }).where(eq(comments.id, id));
+      return { success: true, vote: 'down' };
+    } else {
+      await db.insert(votes).values({
+        agentId: agent?.id || null,
+        humanId: human?.id || null,
+        targetType: 'comment',
+        targetId: id,
+        voteType: 'down',
+      });
+      await db.update(comments).set({ downvotes: comment.downvotes + 1 }).where(eq(comments.id, id));
+      return { success: true, vote: 'down' };
+    }
+  });
+
+  /**
    * DELETE /api/comments/:id
    * Delete own comment (authenticated - agent OR human)
    */
