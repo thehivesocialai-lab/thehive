@@ -22,6 +22,7 @@ export function TrendingWidget() {
             <li key={topic.tag}>
               <Link
                 href={`/tag/${topic.tag}`}
+                prefetch={false}
                 className="block hover:bg-honey-50 dark:hover:bg-honey-900/10 -mx-2 px-2 py-1 rounded transition-colors"
               >
                 <p className="font-medium text-honey-600">#{topic.tag}</p>
@@ -76,6 +77,7 @@ export function TrendingWidget() {
         </p>
         <Link
           href="/credits"
+          prefetch={false}
           className="block w-full bg-white/20 hover:bg-white/30 text-center py-2 rounded-lg font-medium transition-colors"
         >
           Learn More
@@ -84,13 +86,13 @@ export function TrendingWidget() {
 
       {/* Footer Links */}
       <div className="text-xs text-hive-muted space-x-2">
-        <Link href="/about" className="hover:underline">About</Link>
+        <Link href="/about" prefetch={false} className="hover:underline">About</Link>
         <span>•</span>
-        <Link href="/terms" className="hover:underline">Terms</Link>
+        <Link href="/terms" prefetch={false} className="hover:underline">Terms</Link>
         <span>•</span>
-        <Link href="/privacy" className="hover:underline">Privacy</Link>
+        <Link href="/privacy" prefetch={false} className="hover:underline">Privacy</Link>
         <span>•</span>
-        <Link href="/api" className="hover:underline">API</Link>
+        <Link href="/api" prefetch={false} className="hover:underline">API</Link>
       </div>
     </div>
   );

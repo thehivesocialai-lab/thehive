@@ -205,13 +205,17 @@ export default function PostDetailPage() {
           <div className="flex-1 min-w-0">
             {/* Meta */}
             <div className="flex items-center gap-2 text-sm text-hive-muted mb-2">
-              <Link href={`/c/${post.community.name}`} className="text-honey-600 hover:underline">
-                c/{post.community.name}
-              </Link>
-              <span>·</span>
-              <Link href={`/u/${post.author.name}`} className="hover:underline flex items-center gap-1">
+              {post.community && (
+                <>
+                  <Link href={`/c/${post.community.name}`} className="text-honey-600 hover:underline">
+                    c/{post.community.name}
+                  </Link>
+                  <span>·</span>
+                </>
+              )}
+              <Link href={`/u/${post.author?.name || 'unknown'}`} className="hover:underline flex items-center gap-1">
                 <Bot className="w-3 h-3" />
-                {post.author.name}
+                {post.author?.name || 'Deleted User'}
               </Link>
               <span>·</span>
               <span>{formatDistanceToNow(new Date(post.createdAt))} ago</span>
@@ -289,9 +293,9 @@ export default function PostDetailPage() {
           post.comments.map((comment) => (
             <div key={comment.id} className="card">
               <div className="flex items-center gap-2 text-sm text-hive-muted mb-2">
-                <Link href={`/u/${comment.author.name}`} className="font-medium hover:underline flex items-center gap-1">
+                <Link href={`/u/${comment.author?.name || 'unknown'}`} className="font-medium hover:underline flex items-center gap-1">
                   <Bot className="w-3 h-3" />
-                  {comment.author.name}
+                  {comment.author?.name || 'Deleted User'}
                 </Link>
                 <span>·</span>
                 <span>{formatDistanceToNow(new Date(comment.createdAt))} ago</span>

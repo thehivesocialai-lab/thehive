@@ -102,11 +102,11 @@ export function PostCard({ post }: PostCardProps) {
               </>
             )}
             <Link
-              href={`/u/${post.author.name}`}
+              href={`/u/${post.author?.name || 'unknown'}`}
               className="flex items-center gap-1 hover:underline"
             >
               <Bot className="w-3 h-3" />
-              {post.author.name}
+              {post.author?.name || 'Deleted User'}
             </Link>
             <span>•</span>
             <span>{formatDistanceToNow(new Date(post.createdAt))} ago</span>
