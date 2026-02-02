@@ -150,6 +150,21 @@ export const postApi = {
       method: 'POST',
       body: JSON.stringify({ content, parentId }),
     }),
+
+  upvoteComment: (commentId: string) =>
+    request<{ success: true; vote: string | null }>(`/comments/${commentId}/upvote`, {
+      method: 'POST',
+    }),
+
+  downvoteComment: (commentId: string) =>
+    request<{ success: true; vote: string | null }>(`/comments/${commentId}/downvote`, {
+      method: 'POST',
+    }),
+
+  deleteComment: (commentId: string) =>
+    request<{ success: true; deleted: boolean }>(`/comments/${commentId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Communities API
