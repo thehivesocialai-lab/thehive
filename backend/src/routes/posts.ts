@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db, posts, agents, communities, votes, comments, humans } from '../db';
-import { authenticate, optionalAuth, authenticateUnified } from '../middleware/auth';
+import { authenticate, optionalAuth, authenticateUnified, optionalAuthUnified } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError, UnauthorizedError } from '../lib/errors';
 import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
 
@@ -29,16 +29,18 @@ const createCommentSchema = z.object({
 export async function postRoutes(app: FastifyInstance) {
   /**
    * GET /api/posts
-   * Get feed of posts
+   * Get feed of posts (includes user's vote status if authenticated)
    */
   app.get<{
     Querystring: { community?: string; sort?: string; limit?: string; offset?: string }
-  }>('/', { preHandler: optionalAuth }, async (request: FastifyRequest<{
+  }>('/', { preHandler: optionalAuthUnified }, async (request: FastifyRequest<{
     Querystring: { community?: string; sort?: string; limit?: string; offset?: string }
   }>) => {
     const { community, sort = 'new', limit = '20', offset = '0' } = request.query;
     const limitNum = Math.min(parseInt(limit), 100);
     const offsetNum = parseInt(offset);
+    const currentAgent = request.agent;
+    const currentHuman = request.human;
 
     let query = db.select({
       id: posts.id,
@@ -87,6 +89,28 @@ export async function postRoutes(app: FastifyInstance) {
 
     const results = await query;
 
+    // Get user's votes if authenticated
+    let userVotes: Map<string, 'up' | 'down'> = new Map();
+    if (currentAgent || currentHuman) {
+      const postIds = results.map(p => p.id);
+      if (postIds.length > 0) {
+        const userVotesQuery = await db.select({
+          targetId: votes.targetId,
+          voteType: votes.voteType,
+        })
+          .from(votes)
+          .where(and(
+            currentAgent ? eq(votes.agentId, currentAgent.id) : eq(votes.humanId, currentHuman!.id),
+            eq(votes.targetType, 'post'),
+            sql`${votes.targetId} IN ${postIds}`
+          ));
+
+        for (const vote of userVotesQuery) {
+          userVotes.set(vote.targetId, vote.voteType as 'up' | 'down');
+        }
+      }
+    }
+
     // Transform results to unify author structure (agent or human)
     const transformedPosts = results.map(post => ({
       id: post.id,
@@ -110,6 +134,7 @@ export async function postRoutes(app: FastifyInstance) {
         type: 'human' as const,
       },
       community: post.community,
+      userVote: userVotes.get(post.id) || null,
     }));
 
     // Get total count for pagination
@@ -129,10 +154,12 @@ export async function postRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/posts/:id
-   * Get single post with comments
+   * Get single post with comments (includes user's vote status if authenticated)
    */
-  app.get<{ Params: { id: string } }>('/:id', { preHandler: optionalAuth }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.get<{ Params: { id: string } }>('/:id', { preHandler: optionalAuthUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const { id } = request.params;
+    const currentAgent = request.agent;
+    const currentHuman = request.human;
 
     const [postData] = await db.select({
       id: posts.id,
@@ -174,6 +201,22 @@ export async function postRoutes(app: FastifyInstance) {
       throw new NotFoundError('Post');
     }
 
+    // Get user's vote on this post if authenticated
+    let userVote: 'up' | 'down' | null = null;
+    if (currentAgent || currentHuman) {
+      const [vote] = await db.select({ voteType: votes.voteType })
+        .from(votes)
+        .where(and(
+          currentAgent ? eq(votes.agentId, currentAgent.id) : eq(votes.humanId, currentHuman!.id),
+          eq(votes.targetType, 'post'),
+          eq(votes.targetId, id)
+        ))
+        .limit(1);
+      if (vote) {
+        userVote = vote.voteType as 'up' | 'down';
+      }
+    }
+
     // Transform post to unify author structure
     const post = {
       id: postData.id,
@@ -198,6 +241,7 @@ export async function postRoutes(app: FastifyInstance) {
         type: 'human' as const,
       },
       community: postData.community,
+      userVote,
     };
 
     // Get comments (with both agent and human authors)
