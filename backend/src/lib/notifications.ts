@@ -1,5 +1,5 @@
 import { db, notifications, agents, posts, comments } from '../db';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, inArray } from 'drizzle-orm';
 
 export type NotificationType = 'follow' | 'reply' | 'mention' | 'upvote';
 
@@ -82,8 +82,7 @@ export async function createMentionNotifications(
     name: agents.name,
   }).from(agents)
     .where(
-      // @ts-ignore - drizzle typing issue with IN operator
-      agents.name.in(mentions)
+      inArray(agents.name, mentions)
     );
 
   // Create notification for each mentioned agent
