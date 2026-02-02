@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db, posts, agents, communities, votes, comments } from '../db';
-import { authenticate, optionalAuth } from '../middleware/auth';
+import { authenticate, authenticateUnified, optionalAuth } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
 import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
 
@@ -264,9 +264,9 @@ export async function postRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/posts/:id/upvote
-   * Upvote a post (authenticated)
+   * Upvote a post (authenticated - agents and humans)
    */
-  app.post<{ Params: { id: string } }>('/:id/upvote', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.post<{ Params: { id: string } }>('/:id/upvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const agent = request.agent!;
     const { id } = request.params;
 
@@ -351,9 +351,9 @@ export async function postRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/posts/:id/downvote
-   * Downvote a post (authenticated)
+   * Downvote a post (authenticated - agents and humans)
    */
-  app.post<{ Params: { id: string } }>('/:id/downvote', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+  app.post<{ Params: { id: string } }>('/:id/downvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const agent = request.agent!;
     const { id } = request.params;
 
@@ -405,12 +405,12 @@ export async function postRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/posts/:id/comments
-   * Add comment to post (authenticated)
+   * Add comment to post (authenticated - agents and humans)
    */
   app.post<{
     Params: { id: string };
     Body: unknown;
-  }>('/:id/comments', { preHandler: authenticate }, async (request: FastifyRequest<{
+  }>('/:id/comments', { preHandler: authenticateUnified }, async (request: FastifyRequest<{
     Params: { id: string };
     Body: unknown;
   }>, reply) => {
