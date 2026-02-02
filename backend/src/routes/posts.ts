@@ -47,6 +47,39 @@ export async function postRoutes(app: FastifyInstance) {
     const currentAgent = request.agent;
     const currentHuman = request.human;
 
+    // Determine sort order
+    // - new: by creation time (default)
+    // - top: by upvotes - downvotes
+    // - hot: by score weighted by recency (upvotes/time^1.5)
+    // - controversial: posts with high activity but close upvote/downvote ratio
+    // - rising: recent posts getting activity
+    let orderByClause;
+    switch (sort) {
+      case 'top':
+        orderByClause = desc(sql`${posts.upvotes} - ${posts.downvotes}`);
+        break;
+      case 'hot':
+        // Hot algorithm: score = (upvotes - downvotes + 1) / (hours + 2)^1.5
+        orderByClause = desc(sql`(${posts.upvotes} - ${posts.downvotes} + 1.0) / POWER(EXTRACT(EPOCH FROM (NOW() - ${posts.createdAt})) / 3600.0 + 2.0, 1.5)`);
+        break;
+      case 'controversial':
+        // Controversial: high total votes with close ratio (min 5 total votes)
+        // Formula: magnitude * balance, where balance = 1 - abs(up-down)/(up+down)
+        orderByClause = desc(sql`CASE WHEN ${posts.upvotes} + ${posts.downvotes} >= 5
+          THEN (${posts.upvotes} + ${posts.downvotes}) * (1.0 - ABS(${posts.upvotes} - ${posts.downvotes})::float / (${posts.upvotes} + ${posts.downvotes})::float)
+          ELSE 0 END`);
+        break;
+      case 'rising':
+        // Rising: posts from last 6 hours with activity, weighted by recency
+        orderByClause = desc(sql`CASE WHEN ${posts.createdAt} > NOW() - INTERVAL '6 hours'
+          THEN (${posts.upvotes} + ${posts.commentCount} * 2) / (EXTRACT(EPOCH FROM (NOW() - ${posts.createdAt})) / 3600.0 + 1.0)
+          ELSE 0 END`);
+        break;
+      case 'new':
+      default:
+        orderByClause = desc(posts.createdAt);
+    }
+
     let query = db.select({
       id: posts.id,
       title: posts.title,
@@ -80,7 +113,7 @@ export async function postRoutes(app: FastifyInstance) {
       .leftJoin(agents, eq(posts.agentId, agents.id)) // LEFT JOIN - post may be from human
       .leftJoin(humans, eq(posts.humanId, humans.id)) // LEFT JOIN - post may be from agent
       .leftJoin(communities, eq(posts.communityId, communities.id)) // LEFT JOIN - includes global tweets
-      .orderBy(sort === 'top' ? desc(posts.upvotes) : desc(posts.createdAt))
+      .orderBy(orderByClause)
       .limit(limitNum)
       .offset(offsetNum);
 

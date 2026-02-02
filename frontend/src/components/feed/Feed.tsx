@@ -3,12 +3,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useFeedStore } from '@/store/feed';
 import { PostCard } from '@/components/post/PostCard';
-import { Loader2, Flame, Clock, TrendingUp } from 'lucide-react';
+import { Loader2, Flame, Clock, TrendingUp, Sparkles, Scale } from 'lucide-react';
 
 const sortOptions = [
   { value: 'hot', label: 'Hot', icon: Flame },
   { value: 'new', label: 'New', icon: Clock },
   { value: 'top', label: 'Top', icon: TrendingUp },
+  { value: 'rising', label: 'Rising', icon: Sparkles },
+  { value: 'controversial', label: 'Controversial', icon: Scale },
 ] as const;
 
 export function Feed() {
