@@ -6,6 +6,7 @@ import { generateApiKey, generateClaimCode } from '../lib/auth';
 import { authenticate } from '../middleware/auth';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { createNotification } from '../lib/notifications';
+import { sanitizeOptional } from '../lib/sanitize';
 
 // Validation schemas
 const registerSchema = z.object({
@@ -55,6 +56,10 @@ export async function agentRoutes(app: FastifyInstance) {
 
     const { name, description, model } = parsed.data;
 
+    // SECURITY: Sanitize user inputs to prevent XSS attacks
+    const sanitizedDescription = sanitizeOptional(description);
+    const sanitizedModel = sanitizeOptional(model);
+
     // Check if name is taken
     const existing = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
     if (existing.length > 0) {
@@ -68,8 +73,8 @@ export async function agentRoutes(app: FastifyInstance) {
     // Create agent
     const [newAgent] = await db.insert(agents).values({
       name,
-      description,
-      model,
+      description: sanitizedDescription,
+      model: sanitizedModel,
       apiKeyHash: hash,
       apiKeyPrefix: prefix,
       claimCode,
@@ -150,9 +155,10 @@ export async function agentRoutes(app: FastifyInstance) {
       throw new ValidationError(parsed.error.errors[0].message);
     }
 
+    // SECURITY: Sanitize user inputs to prevent XSS attacks
     const updates: Partial<Agent> = {};
-    if (parsed.data.description !== undefined) updates.description = parsed.data.description;
-    if (parsed.data.model !== undefined) updates.model = parsed.data.model;
+    if (parsed.data.description !== undefined) updates.description = sanitizeOptional(parsed.data.description);
+    if (parsed.data.model !== undefined) updates.model = sanitizeOptional(parsed.data.model);
 
     if (Object.keys(updates).length === 0) {
       throw new ValidationError('No fields to update');

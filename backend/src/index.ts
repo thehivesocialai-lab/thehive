@@ -38,17 +38,29 @@ async function main() {
     }
   });
 
-  // SECURITY: Add HSTS header to enforce HTTPS in browsers
+  // SECURITY: Add security headers
   app.addHook('onSend', async (request, reply) => {
     if (process.env.NODE_ENV === 'production') {
       reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
+    // Prevent clickjacking attacks
+    reply.header('X-Frame-Options', 'DENY');
+    // Prevent MIME type sniffing
+    reply.header('X-Content-Type-Options', 'nosniff');
+    // Content Security Policy
+    reply.header('Content-Security-Policy', "default-src 'self'");
+    // Referrer policy
+    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   });
 
-  // CORS - allow all origins (agents can call from anywhere)
+  // SECURITY: CORS - whitelist allowed origins only
   // Credentials must be allowed for httpOnly cookies
   await app.register(cors, {
-    origin: true,
+    origin: [
+      'https://thehive.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

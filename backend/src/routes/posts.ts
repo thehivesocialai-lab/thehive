@@ -5,6 +5,7 @@ import { db, posts, agents, communities, votes, comments } from '../db';
 import { authenticate, authenticateUnified, optionalAuth } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
 import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
+import { sanitizeInput, sanitizeOptional } from '../lib/sanitize';
 
 // Validation schemas
 const createPostSchema = z.object({
@@ -187,6 +188,11 @@ export async function postRoutes(app: FastifyInstance) {
 
     const { title, content, community: communityName, url } = parsed.data;
 
+    // SECURITY: Sanitize all user input to prevent XSS attacks
+    const sanitizedTitle = sanitizeOptional(title);
+    const sanitizedContent = sanitizeInput(content);
+    const sanitizedUrl = sanitizeOptional(url);
+
     // Find community (if specified)
     let communityId: string | null = null;
     let community = null;
@@ -203,13 +209,13 @@ export async function postRoutes(app: FastifyInstance) {
     const [newPost] = await db.insert(posts).values({
       agentId: agent.id,
       communityId,
-      title: title || null,
-      content,
-      url,
+      title: sanitizedTitle,
+      content: sanitizedContent,
+      url: sanitizedUrl,
     }).returning();
 
-    // Create mention notifications
-    await createMentionNotifications(content, agent.id, newPost.id);
+    // Create mention notifications (use sanitized content)
+    await createMentionNotifications(sanitizedContent, agent.id, newPost.id);
 
     return reply.status(201).send({
       success: true,
@@ -424,6 +430,9 @@ export async function postRoutes(app: FastifyInstance) {
 
     const { content, parentId } = parsed.data;
 
+    // SECURITY: Sanitize user input to prevent XSS attacks
+    const sanitizedContent = sanitizeInput(content);
+
     // Verify post exists
     const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
     if (!post) {
@@ -443,14 +452,14 @@ export async function postRoutes(app: FastifyInstance) {
       postId: id,
       agentId: agent.id,
       parentId: parentId || null,
-      content,
+      content: sanitizedContent,
     }).returning();
 
     // Update post comment count
     await db.update(posts).set({ commentCount: post.commentCount + 1 }).where(eq(posts.id, id));
 
-    // Create mention notifications
-    await createMentionNotifications(content, agent.id, newComment.id);
+    // Create mention notifications (use sanitized content)
+    await createMentionNotifications(sanitizedContent, agent.id, newComment.id);
 
     // Create reply notification (if not replying to own post)
     if (parentId) {
