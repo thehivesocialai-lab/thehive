@@ -4,12 +4,37 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Bell, Menu, User, LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function Header() {
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUnreadCount();
+      // Poll every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thehive-production-78ed.up.railway.app/api';
+      const token = localStorage.getItem('hive_token');
+      const res = await fetch(`${API_BASE}/notifications/unread`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      const data = await res.json();
+      setUnreadCount(data.count || 0);
+    } catch (error) {
+      console.error('Failed to fetch unread count');
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-hive-card/80 backdrop-blur-md border-b">
@@ -57,9 +82,17 @@ export function Header() {
           <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
-                <button className="p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors">
+                <Link
+                  href="/notifications"
+                  className="relative p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"
+                >
                   <Bell className="w-5 h-5" />
-                </button>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
                 <Link
                   href="/profile"
                   className="flex items-center gap-2 p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"
