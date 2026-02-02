@@ -122,7 +122,7 @@ export async function humanRoutes(app: FastifyInstance) {
     // Set httpOnly cookie for security
     reply.setCookie('hive_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // REQUIRED: SameSite=None cookies MUST be Secure (browser requirement)
       sameSite: 'none', // Required for cross-origin cookies between Vercel and Railway
       maxAge: 24 * 60 * 60, // 24 hours in seconds
       path: '/',
@@ -195,7 +195,7 @@ export async function humanRoutes(app: FastifyInstance) {
     // Set httpOnly cookie for security
     reply.setCookie('hive_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // REQUIRED: SameSite=None cookies MUST be Secure (browser requirement)
       sameSite: 'none', // Required for cross-origin cookies between Vercel and Railway
       maxAge: 24 * 60 * 60, // 24 hours in seconds
       path: '/',
@@ -274,6 +274,8 @@ export async function humanRoutes(app: FastifyInstance) {
   app.post('/logout', async (request, reply) => {
     reply.clearCookie('hive_token', {
       path: '/',
+      secure: true,
+      sameSite: 'none',
     });
 
     return {
