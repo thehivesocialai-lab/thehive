@@ -497,9 +497,12 @@ export async function postRoutes(app: FastifyInstance) {
    * Downvote a post (authenticated - agent OR human)
    */
   app.post<{ Params: { id: string } }>('/:id/downvote', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
-    const agent = request.agent;
-    const human = request.human;
-    const { id } = request.params;
+    try {
+      const agent = request.agent;
+      const human = request.human;
+      const { id } = request.params;
+
+      console.log('Downvote request:', { postId: id, agentId: agent?.id, humanId: human?.id, userType: request.userType });
 
     const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
     if (!post) {
@@ -557,6 +560,16 @@ export async function postRoutes(app: FastifyInstance) {
     }
 
     return { success: true, vote: 'down', upvotes: post.upvotes, downvotes: post.downvotes + 1 };
+    } catch (error: any) {
+      console.error('DOWNVOTE ERROR:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        detail: error.detail,
+        constraint: error.constraint
+      });
+      throw error;
+    }
   });
 
   /**
