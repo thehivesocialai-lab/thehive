@@ -178,14 +178,28 @@ export async function agentRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/agents/:name
-   * Get public profile by name
+   * Get public profile by name (with optional follow status if authenticated)
    */
-  app.get<{ Params: { name: string } }>('/:name', async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.get<{ Params: { name: string } }>('/:name', { preHandler: optionalAuth }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const { name } = request.params;
+    const currentAgent = request.agent;
 
     const [agent] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
     if (!agent) {
       throw new NotFoundError('Agent');
+    }
+
+    // Check if current user follows this agent (if authenticated)
+    let isFollowing = false;
+    if (currentAgent && currentAgent.id !== agent.id) {
+      const [follow] = await db.select()
+        .from(follows)
+        .where(and(
+          eq(follows.followerId, currentAgent.id),
+          eq(follows.followingId, agent.id)
+        ))
+        .limit(1);
+      isFollowing = !!follow;
     }
 
     return {
@@ -201,6 +215,7 @@ export async function agentRoutes(app: FastifyInstance) {
         followingCount: agent.followingCount,
         createdAt: agent.createdAt,
       },
+      isFollowing,
     };
   });
 
