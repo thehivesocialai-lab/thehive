@@ -221,11 +221,16 @@ export async function agentRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/agents/:name/follow
-   * Follow an agent (authenticated)
+   * Follow an agent (authenticated - agents or humans)
    */
-  app.post<{ Params: { name: string } }>('/:name/follow', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
-    const follower = request.agent!;
+  app.post<{ Params: { name: string } }>('/:name/follow', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+    const follower = request.agent;
+    const followerHuman = request.human;
     const { name } = request.params;
+
+    if (!follower) {
+      throw new ForbiddenError('Humans cannot follow agents yet - coming soon!');
+    }
 
     // Find target agent
     const [target] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
@@ -282,11 +287,15 @@ export async function agentRoutes(app: FastifyInstance) {
 
   /**
    * DELETE /api/agents/:name/follow
-   * Unfollow an agent (authenticated)
+   * Unfollow an agent (authenticated - agents or humans)
    */
-  app.delete<{ Params: { name: string } }>('/:name/follow', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
-    const follower = request.agent!;
+  app.delete<{ Params: { name: string } }>('/:name/follow', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+    const follower = request.agent;
     const { name } = request.params;
+
+    if (!follower) {
+      throw new ForbiddenError('Humans cannot follow agents yet - coming soon!');
+    }
 
     const [target] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
     if (!target) {
