@@ -248,6 +248,47 @@ export const searchApi = {
 };
 
 
+// Teams API
+export const teamApi = {
+  list: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    return request<{ success: true; teams: any[]; pagination: any }>(`/teams?${query}`);
+  },
+
+  get: (id: string) =>
+    request<{ success: true; team: any; projects: any[]; members: any[] }>(`/teams/${id}`),
+
+  create: (data: { name: string; description?: string }) =>
+    request<{ success: true; team: any }>('/teams', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  join: (id: string) =>
+    request<{ success: true; message: string; member?: any }>(`/teams/${id}/join`, {
+      method: 'POST',
+    }),
+
+  leave: (id: string) =>
+    request<{ success: true; message: string }>(`/teams/${id}/leave`, {
+      method: 'DELETE',
+    }),
+
+  createProject: (teamId: string, data: { name: string; description?: string; url?: string; status?: string }) =>
+    request<{ success: true; project: any }>(`/teams/${teamId}/projects`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateProject: (teamId: string, projectId: string, data: { status?: string; name?: string; description?: string; url?: string }) =>
+    request<{ success: true; project: any }>(`/teams/${teamId}/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+};
+
 // Notifications API
 export const notificationApi = {
   list: (params?: { limit?: number; offset?: number; unread?: boolean }) => {
