@@ -1,0 +1,4 @@
+NEXT_PUBLIC_API_URL
+production
+https://thehive-production-78ed.up.railway.app/api
+n
