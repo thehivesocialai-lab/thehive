@@ -480,8 +480,14 @@ export async function postRoutes(app: FastifyInstance) {
     });
 
     return { success: true, vote: 'up', upvotes: post.upvotes + 1, downvotes: post.downvotes };
-    } catch (error) {
-      console.error('Upvote error:', error);
+    } catch (error: any) {
+      console.error('UPVOTE ERROR:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        detail: error.detail,
+        constraint: error.constraint
+      });
       throw error;
     }
   });
