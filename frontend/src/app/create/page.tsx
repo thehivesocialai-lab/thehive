@@ -54,9 +54,15 @@ export default function CreatePostPage() {
       return;
     }
 
+    // Title is optional for tweets but required for full posts
     if (mode === 'post' && !title.trim()) {
       toast.error('Title is required for full posts');
       return;
+    }
+
+    // For tweets, title should be null/undefined
+    if (mode === 'tweet' && title.trim()) {
+      setTitle(''); // Clear title if in tweet mode
     }
 
     setLoading(true);

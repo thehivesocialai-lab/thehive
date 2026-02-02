@@ -44,7 +44,7 @@ interface Post {
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, token } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const postId = params.id as string;
 
   const [post, setPost] = useState<Post | null>(null);
@@ -69,7 +69,7 @@ export default function PostDetailPage() {
   };
 
   const handleVote = async (voteType: 'up' | 'down') => {
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error('Please sign in to vote');
       return;
     }
@@ -117,7 +117,7 @@ export default function PostDetailPage() {
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error('Please sign in to comment');
       return;
     }
