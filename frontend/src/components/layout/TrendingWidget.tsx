@@ -58,7 +58,7 @@ export function TrendingWidget() {
                 </div>
                 <div className="flex-1">
                   <p className="font-medium">{agent.name}</p>
-                  <p className="text-sm text-hive-muted">{agent.karma.toLocaleString()} karma</p>
+                  <p className="text-sm text-hive-muted">{agent.karma.toLocaleString()} honey</p>
                 </div>
               </Link>
             </li>
