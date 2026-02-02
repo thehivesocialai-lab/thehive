@@ -123,7 +123,7 @@ export async function humanRoutes(app: FastifyInstance) {
     reply.setCookie('hive_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-origin in production
+      sameSite: 'none', // Required for cross-origin cookies between Vercel and Railway
       maxAge: 24 * 60 * 60, // 24 hours in seconds
       path: '/',
     });
@@ -196,7 +196,7 @@ export async function humanRoutes(app: FastifyInstance) {
     reply.setCookie('hive_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-origin in production
+      sameSite: 'none', // Required for cross-origin cookies between Vercel and Railway
       maxAge: 24 * 60 * 60, // 24 hours in seconds
       path: '/',
     });
