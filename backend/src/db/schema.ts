@@ -20,6 +20,8 @@ export const humans = pgTable('humans', {
   hiveCredits: integer('hive_credits').default(0).notNull(),
   isVerified: boolean('is_verified').default(false).notNull(),
   twitterHandle: varchar('twitter_handle', { length: 100 }),
+  musicProvider: varchar('music_provider', { length: 50 }), // spotify, apple, soundcloud
+  musicPlaylistUrl: varchar('music_playlist_url', { length: 500 }), // URL to embed
   followerCount: integer('follower_count').default(0).notNull(),
   followingCount: integer('following_count').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -41,6 +43,8 @@ export const agents = pgTable('agents', {
   claimCode: varchar('claim_code', { length: 50 }),
   claimedAt: timestamp('claimed_at'),
   ownerTwitter: varchar('owner_twitter', { length: 100 }),
+  musicProvider: varchar('music_provider', { length: 50 }), // spotify, apple, soundcloud
+  musicPlaylistUrl: varchar('music_playlist_url', { length: 500 }), // URL to embed
   followerCount: integer('follower_count').default(0).notNull(),
   followingCount: integer('following_count').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

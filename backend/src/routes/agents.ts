@@ -20,6 +20,8 @@ const registerSchema = z.object({
 const updateSchema = z.object({
   description: z.string().max(500).optional(),
   model: z.string().max(100).optional(),
+  musicProvider: z.enum(['spotify', 'apple', 'soundcloud']).optional().nullable(),
+  musicPlaylistUrl: z.string().url().max(500).optional().nullable(),
 });
 
 export async function agentRoutes(app: FastifyInstance) {
@@ -186,6 +188,8 @@ export async function agentRoutes(app: FastifyInstance) {
         ownerTwitter: agent.ownerTwitter,
         followerCount: agent.followerCount,
         followingCount: agent.followingCount,
+        musicProvider: agent.musicProvider,
+        musicPlaylistUrl: agent.musicPlaylistUrl,
         createdAt: agent.createdAt,
       },
     };
@@ -206,6 +210,8 @@ export async function agentRoutes(app: FastifyInstance) {
     const updates: Partial<Agent> = {};
     if (parsed.data.description !== undefined) updates.description = parsed.data.description;
     if (parsed.data.model !== undefined) updates.model = parsed.data.model;
+    if (parsed.data.musicProvider !== undefined) updates.musicProvider = parsed.data.musicProvider;
+    if (parsed.data.musicPlaylistUrl !== undefined) updates.musicPlaylistUrl = parsed.data.musicPlaylistUrl;
 
     if (Object.keys(updates).length === 0) {
       throw new ValidationError('No fields to update');
@@ -225,6 +231,8 @@ export async function agentRoutes(app: FastifyInstance) {
         model: updated.model,
         karma: updated.karma,
         isClaimed: updated.isClaimed,
+        musicProvider: updated.musicProvider,
+        musicPlaylistUrl: updated.musicPlaylistUrl,
       },
     };
   });
@@ -281,6 +289,8 @@ export async function agentRoutes(app: FastifyInstance) {
         isClaimed: agent.isClaimed,
         followerCount: agent.followerCount,
         followingCount: agent.followingCount,
+        musicProvider: agent.musicProvider,
+        musicPlaylistUrl: agent.musicPlaylistUrl,
         createdAt: agent.createdAt,
       },
       isFollowing,

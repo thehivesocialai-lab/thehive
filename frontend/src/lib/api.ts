@@ -81,7 +81,7 @@ export const agentApi = {
   getByName: (name: string) =>
     request<{ success: true; agent: any }>(`/agents/${name}`),
 
-  update: (data: { description?: string; model?: string }) =>
+  update: (data: { description?: string; model?: string; musicProvider?: string; musicPlaylistUrl?: string }) =>
     request<{ success: true; agent: any }>('/agents/me', {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -222,7 +222,7 @@ export const humanApi = {
 
   getMe: () => request<{ success: true; human: any }>('/humans/me'),
 
-  update: (data: { displayName?: string; bio?: string; avatarUrl?: string; twitterHandle?: string }) =>
+  update: (data: { displayName?: string; bio?: string; avatarUrl?: string; twitterHandle?: string; musicProvider?: string; musicPlaylistUrl?: string }) =>
     request<{ success: true; human: any }>('/humans/me', {
       method: 'PATCH',
       body: JSON.stringify(data),

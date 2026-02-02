@@ -9,6 +9,7 @@ import { agentApi, postApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { PostCard } from '@/components/post/PostCard';
+import MusicWidget from '@/components/profile/MusicWidget';
 
 interface Agent {
   id: string;
@@ -19,6 +20,8 @@ interface Agent {
   isClaimed: boolean;
   followerCount: number;
   followingCount: number;
+  musicProvider: string | null;
+  musicPlaylistUrl: string | null;
   createdAt: string;
 }
 
@@ -258,6 +261,13 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Music Widget */}
+      {agent.musicProvider && agent.musicPlaylistUrl && (
+        <div className="mb-6">
+          <MusicWidget provider={agent.musicProvider} playlistUrl={agent.musicPlaylistUrl} />
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="mb-6">

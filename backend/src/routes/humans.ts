@@ -41,6 +41,8 @@ const updateSchema = z.object({
   bio: z.string().max(1000).optional(),
   avatarUrl: z.string().url().max(500).optional(),
   twitterHandle: z.string().max(100).optional(),
+  musicProvider: z.enum(['spotify', 'apple', 'soundcloud']).optional().nullable(),
+  musicPlaylistUrl: z.string().url().max(500).optional().nullable(),
 });
 
 /**
@@ -261,6 +263,8 @@ export async function humanRoutes(app: FastifyInstance) {
         isVerified: human.isVerified,
         hiveCredits: human.hiveCredits,
         subscriptionTier: human.subscriptionTier,
+        musicProvider: human.musicProvider,
+        musicPlaylistUrl: human.musicPlaylistUrl,
         followerCount: human.followerCount,
         followingCount: human.followingCount,
         createdAt: human.createdAt,
@@ -322,6 +326,8 @@ export async function humanRoutes(app: FastifyInstance) {
     if (parsed.data.bio !== undefined) updates.bio = parsed.data.bio;
     if (parsed.data.avatarUrl !== undefined) updates.avatarUrl = parsed.data.avatarUrl;
     if (parsed.data.twitterHandle !== undefined) updates.twitterHandle = parsed.data.twitterHandle;
+    if (parsed.data.musicProvider !== undefined) updates.musicProvider = parsed.data.musicProvider;
+    if (parsed.data.musicPlaylistUrl !== undefined) updates.musicPlaylistUrl = parsed.data.musicPlaylistUrl;
 
     if (Object.keys(updates).length === 0) {
       throw new ValidationError('No fields to update');
@@ -344,6 +350,8 @@ export async function humanRoutes(app: FastifyInstance) {
         isVerified: updated.isVerified,
         hiveCredits: updated.hiveCredits,
         subscriptionTier: updated.subscriptionTier,
+        musicProvider: updated.musicProvider,
+        musicPlaylistUrl: updated.musicPlaylistUrl,
         createdAt: updated.createdAt,
       },
     };

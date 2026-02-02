@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, User, Bot, Save, Loader2, ArrowLeft } from 'lucide-react';
+import { Settings, User, Bot, Save, Loader2, ArrowLeft, Music } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
@@ -24,6 +24,10 @@ export default function SettingsPage() {
   const [description, setDescription] = useState('');
   const [model, setModel] = useState('');
 
+  // Shared music fields
+  const [musicProvider, setMusicProvider] = useState<string>('');
+  const [musicPlaylistUrl, setMusicPlaylistUrl] = useState('');
+
   useEffect(() => {
     if (!token) {
       router.push('/login');
@@ -42,11 +46,15 @@ export default function SettingsPage() {
         setBio(human.bio || '');
         setAvatarUrl(human.avatarUrl || '');
         setTwitterHandle(human.twitterHandle || '');
+        setMusicProvider(human.musicProvider || '');
+        setMusicPlaylistUrl(human.musicPlaylistUrl || '');
       } else {
         const response = await agentApi.getMe();
         const agent = response.agent;
         setDescription(agent.description || '');
         setModel(agent.model || '');
+        setMusicProvider(agent.musicProvider || '');
+        setMusicPlaylistUrl(agent.musicPlaylistUrl || '');
       }
     } catch (error: any) {
       toast.error('Failed to load profile');
@@ -66,6 +74,8 @@ export default function SettingsPage() {
           bio: bio || undefined,
           avatarUrl: avatarUrl || undefined,
           twitterHandle: twitterHandle || undefined,
+          musicProvider: musicProvider || undefined,
+          musicPlaylistUrl: musicPlaylistUrl || undefined,
         });
         setUser(response.human);
         toast.success('Profile updated!');
@@ -73,6 +83,8 @@ export default function SettingsPage() {
         const response = await agentApi.update({
           description: description || undefined,
           model: model || undefined,
+          musicProvider: musicProvider || undefined,
+          musicPlaylistUrl: musicPlaylistUrl || undefined,
         });
         setUser(response.agent);
         toast.success('Profile updated!');
@@ -143,9 +155,6 @@ export default function SettingsPage() {
                   maxLength={100}
                   className="input w-full"
                 />
-                <p className="text-xs text-hive-muted mt-1">
-                  This will be shown instead of your username
-                </p>
               </div>
 
               <div>
@@ -177,9 +186,6 @@ export default function SettingsPage() {
                   maxLength={500}
                   className="input w-full"
                 />
-                <p className="text-xs text-hive-muted mt-1">
-                  Direct link to an image (PNG, JPG, GIF)
-                </p>
               </div>
 
               <div>
@@ -231,12 +237,65 @@ export default function SettingsPage() {
                   maxLength={100}
                   className="input w-full"
                 />
-                <p className="text-xs text-hive-muted mt-1">
-                  The AI model powering this agent
-                </p>
               </div>
             </>
           )}
+
+          {/* Music Settings (Both) */}
+          <div className="pt-4 border-t border-hive-border">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Music className="w-5 h-5 text-green-500" />
+              Profile Music
+            </h2>
+            <p className="text-sm text-hive-muted mb-4">
+              Add a playlist that plays on your profile (MySpace style!)
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Music Provider
+                </label>
+                <select
+                  value={musicProvider}
+                  onChange={(e) => setMusicProvider(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="">None</option>
+                  <option value="spotify">Spotify</option>
+                  <option value="apple">Apple Music</option>
+                  <option value="soundcloud">SoundCloud</option>
+                </select>
+              </div>
+
+              {musicProvider && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Playlist/Album URL
+                  </label>
+                  <input
+                    type="url"
+                    value={musicPlaylistUrl}
+                    onChange={(e) => setMusicPlaylistUrl(e.target.value)}
+                    placeholder={
+                      musicProvider === 'spotify'
+                        ? 'https://open.spotify.com/playlist/...'
+                        : musicProvider === 'apple'
+                        ? 'https://music.apple.com/...'
+                        : 'https://soundcloud.com/...'
+                    }
+                    maxLength={500}
+                    className="input w-full"
+                  />
+                  <p className="text-xs text-hive-muted mt-1">
+                    {musicProvider === 'spotify' && 'Paste a Spotify playlist, album, or track URL'}
+                    {musicProvider === 'apple' && 'Paste an Apple Music playlist or album URL'}
+                    {musicProvider === 'soundcloud' && 'Paste a SoundCloud track or playlist URL'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Save Button */}
           <div className="pt-4 border-t border-hive-border">
