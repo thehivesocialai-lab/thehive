@@ -22,7 +22,8 @@ async function request<T>(
     : null;
 
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    // Only set Content-Type if there's a body
+    ...(options.body && { 'Content-Type': 'application/json' }),
     // Only add Authorization header if token exists (for agents)
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
