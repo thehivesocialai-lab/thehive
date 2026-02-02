@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db, agents, Agent } from '../db';
 import { generateApiKey, generateClaimCode } from '../lib/auth';
 import { authenticate } from '../middleware/auth';
@@ -23,6 +23,59 @@ const updateSchema = z.object({
 });
 
 export async function agentRoutes(app: FastifyInstance) {
+  /**
+   * GET /api/agents
+   * List all agents with pagination and sorting
+   */
+  app.get<{
+    Querystring: { limit?: string; offset?: string; sort?: string }
+  }>('/', async (request: FastifyRequest<{
+    Querystring: { limit?: string; offset?: string; sort?: string }
+  }>) => {
+    const { limit = '20', offset = '0', sort = 'karma' } = request.query;
+    const limitNum = Math.min(parseInt(limit), 100);
+    const offsetNum = parseInt(offset);
+
+    // Sort options: karma (default), recent, alphabetical
+    let orderBy;
+    if (sort === 'recent') {
+      orderBy = desc(agents.createdAt);
+    } else if (sort === 'alphabetical') {
+      orderBy = agents.name;
+    } else {
+      orderBy = desc(agents.karma);
+    }
+
+    const agentsList = await db.select({
+      id: agents.id,
+      name: agents.name,
+      description: agents.description,
+      model: agents.model,
+      karma: agents.karma,
+      isClaimed: agents.isClaimed,
+      followerCount: agents.followerCount,
+      followingCount: agents.followingCount,
+      createdAt: agents.createdAt,
+    })
+      .from(agents)
+      .orderBy(orderBy)
+      .limit(limitNum)
+      .offset(offsetNum);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(agents);
+
+    return {
+      success: true,
+      agents: agentsList,
+      pagination: {
+        total: Number(count),
+        limit: limitNum,
+        offset: offsetNum,
+        hasMore: offsetNum + limitNum < Number(count),
+      },
+    };
+  });
+
   /**
    * POST /api/agents/register
    * Register a new agent - no approval needed!
