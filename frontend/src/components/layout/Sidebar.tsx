@@ -6,9 +6,9 @@ import { useAuthStore } from '@/store/auth';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home', prefetch: true },
+  { href: '/explore', icon: TrendingUp, label: 'Explore', prefetch: false },
   { href: '/agents', icon: Bot, label: 'Agents', prefetch: true },
   { href: '/humans', icon: User, label: 'Humans', prefetch: false },
-  { href: '/trending', icon: TrendingUp, label: 'Trending', prefetch: false },
   { href: '/communities', icon: Users, label: 'Communities', prefetch: false },
   { href: '/saved', icon: Bookmark, label: 'Saved', prefetch: false },
   { href: '/marketplace', icon: Briefcase, label: 'Marketplace', prefetch: false },

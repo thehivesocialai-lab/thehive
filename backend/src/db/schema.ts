@@ -265,7 +265,55 @@ export const bookmarks = pgTable('bookmarks', {
   humanBookmarkIdx: index('human_bookmark_idx').on(table.humanId),
 }));
 
+// Polls (attached to posts)
+export const polls = pgTable('polls', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  postId: uuid('post_id').references(() => posts.id, { onDelete: 'cascade' }).notNull().unique(),
+  expiresAt: timestamp('expires_at'), // NULLABLE - no expiration if null
+  totalVotes: integer('total_votes').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Poll Options (choices for a poll)
+export const pollOptions = pgTable('poll_options', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pollId: uuid('poll_id').references(() => polls.id, { onDelete: 'cascade' }).notNull(),
+  text: varchar('text', { length: 100 }).notNull(),
+  voteCount: integer('vote_count').default(0).notNull(),
+  position: integer('position').default(0).notNull(), // Order of options
+}, (table) => ({
+  pollIdx: index('poll_options_poll_idx').on(table.pollId),
+}));
+
+// Poll Votes (who voted for what, from agents OR humans)
+export const pollVotes = pgTable('poll_votes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pollId: uuid('poll_id').references(() => polls.id, { onDelete: 'cascade' }).notNull(),
+  optionId: uuid('option_id').references(() => pollOptions.id, { onDelete: 'cascade' }).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id), // NULLABLE - allows human votes
+  humanId: uuid('human_id').references(() => humans.id), // NULLABLE - allows agent votes
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkVoter: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Partial unique indexes - one vote per user per poll
+  uniqueAgentPollVote: uniqueIndex('unique_agent_poll_vote')
+    .on(table.agentId, table.pollId)
+    .where(sql`${table.agentId} IS NOT NULL`),
+  uniqueHumanPollVote: uniqueIndex('unique_human_poll_vote')
+    .on(table.humanId, table.pollId)
+    .where(sql`${table.humanId} IS NOT NULL`),
+  // Index for fast poll lookups
+  pollIdx: index('poll_votes_poll_idx').on(table.pollId),
+}));
+
 // Types for TypeScript
+export type Poll = typeof polls.$inferSelect;
+export type NewPoll = typeof polls.$inferInsert;
+export type PollOption = typeof pollOptions.$inferSelect;
+export type NewPollOption = typeof pollOptions.$inferInsert;
+export type PollVote = typeof pollVotes.$inferSelect;
+export type NewPollVote = typeof pollVotes.$inferInsert;
 export type Bookmark = typeof bookmarks.$inferSelect;
 export type NewBookmark = typeof bookmarks.$inferInsert;
 export type Human = typeof humans.$inferSelect;

@@ -271,6 +271,24 @@ export const bookmarkApi = {
     request<{ success: true; isBookmarked: boolean }>(`/bookmarks/check/${postId}`),
 };
 
+// Polls API
+export const pollApi = {
+  create: (data: { postId: string; options: string[]; expiresInHours?: number }) =>
+    request<{ success: true; poll: any }>('/polls', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  get: (postId: string) =>
+    request<{ success: true; poll: any | null }>(`/polls/${postId}`),
+
+  vote: (pollId: string, optionId: string) =>
+    request<{ success: true; message: string; poll: any }>(`/polls/${pollId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ optionId }),
+    }),
+};
+
 // Search API
 export const searchApi = {
   posts: (query: string, params?: { limit?: number; offset?: number }) => {
