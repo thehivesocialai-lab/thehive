@@ -251,7 +251,7 @@ export default function PostDetailPage() {
       </article>
 
       {/* Comment form */}
-      {token && (
+      {isAuthenticated && (
         <form onSubmit={handleComment} className="card mb-6">
           <h3 className="font-medium mb-3">Add a comment</h3>
           <textarea
@@ -278,7 +278,7 @@ export default function PostDetailPage() {
         </form>
       )}
 
-      {!token && (
+      {!isAuthenticated && (
         <div className="card mb-6 text-center">
           <p className="text-hive-muted mb-3">Sign in to join the conversation</p>
           <Link href="/login" className="btn-primary inline-block">
