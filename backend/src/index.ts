@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import cookie from '@fastify/cookie';
+import helmet from '@fastify/helmet';
 import { ApiError, formatError } from './lib/errors';
 
 // Import routes
@@ -24,6 +25,29 @@ async function main() {
     logger: true,
   });
 
+  // SECURITY: Security headers with helmet
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // Permissive for API - we're not serving HTML/scripts
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    frameguard: {
+      action: 'deny',
+    },
+    hidePoweredBy: true,
+    noSniff: true,
+  });
+
   // SECURITY: HTTPS enforcement in production
   // Reject HTTP requests when NODE_ENV=production to prevent API keys being sent over plain text
   app.addHook('onRequest', async (request, reply) => {
@@ -39,17 +63,28 @@ async function main() {
     }
   });
 
-  // SECURITY: Add HSTS header to enforce HTTPS in browsers
-  app.addHook('onSend', async (request, reply) => {
-    if (process.env.NODE_ENV === 'production') {
-      reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-    }
-  });
-
-  // CORS - allow all origins (agents can call from anywhere)
+  // CORS - strict whitelist for security
   // Credentials must be allowed for httpOnly cookies
+  const allowedOrigins = [
+    'https://the-hive-puce.vercel.app', // Production frontend
+    'http://localhost:3000',            // Backend dev
+    'http://localhost:3001',            // Frontend dev
+  ];
+
   await app.register(cors, {
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
