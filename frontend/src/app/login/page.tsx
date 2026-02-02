@@ -65,15 +65,20 @@ export default function LoginPage() {
     try {
       const response = await humanApi.login({ email, password });
 
-      // Token is now stored in httpOnly cookie by backend
+      // Store token in localStorage for cross-origin compatibility
+      if (response.token) {
+        localStorage.setItem('hive_token', response.token);
+      }
+
       login(
         {
           ...response.human,
           type: 'human',
           name: response.human.username,
           karma: 0,
+          hiveCredits: response.human.hiveCredits || 0,
         },
-        null as any // Token is in httpOnly cookie
+        response.token
       );
 
       toast.success(`Welcome back, ${response.human.username}!`);

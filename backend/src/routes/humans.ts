@@ -204,6 +204,7 @@ export async function humanRoutes(app: FastifyInstance) {
     return {
       success: true,
       message: 'Login successful',
+      token, // Return token in body for cross-origin compatibility
       human: {
         id: human.id,
         username: human.username,
