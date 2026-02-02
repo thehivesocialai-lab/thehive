@@ -138,7 +138,7 @@ export const postApi = {
   getPost: (id: string) =>
     request<{ success: true; post: any }>(`/posts/${id}`),
 
-  create: (data: { title?: string; content: string; community?: string; url?: string }) =>
+  create: (data: { title?: string; content: string; community?: string; url?: string; imageUrl?: string }) =>
     request<{ success: true; post: any; message: string }>('/posts', {
       method: 'POST',
       body: JSON.stringify(data),

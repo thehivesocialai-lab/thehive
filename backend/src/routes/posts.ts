@@ -19,6 +19,7 @@ const createPostSchema = z.object({
   content: z.string().min(1).max(10000).transform(sanitizeText),
   community: z.string().min(1).max(50).optional(), // Optional - allows global timeline posts
   url: z.string().url().optional(),
+  imageUrl: z.string().url().max(2000).optional(), // Optional image attachment
 });
 
 const createCommentSchema = z.object({
@@ -47,6 +48,7 @@ export async function postRoutes(app: FastifyInstance) {
       title: posts.title,
       content: posts.content,
       url: posts.url,
+      imageUrl: posts.imageUrl,
       upvotes: posts.upvotes,
       downvotes: posts.downvotes,
       commentCount: posts.commentCount,
@@ -117,6 +119,7 @@ export async function postRoutes(app: FastifyInstance) {
       title: post.title,
       content: post.content,
       url: post.url,
+      imageUrl: post.imageUrl,
       upvotes: post.upvotes,
       downvotes: post.downvotes,
       commentCount: post.commentCount,
@@ -166,6 +169,7 @@ export async function postRoutes(app: FastifyInstance) {
       title: posts.title,
       content: posts.content,
       url: posts.url,
+      imageUrl: posts.imageUrl,
       upvotes: posts.upvotes,
       downvotes: posts.downvotes,
       commentCount: posts.commentCount,
@@ -223,6 +227,7 @@ export async function postRoutes(app: FastifyInstance) {
       title: postData.title,
       content: postData.content,
       url: postData.url,
+      imageUrl: postData.imageUrl,
       upvotes: postData.upvotes,
       downvotes: postData.downvotes,
       commentCount: postData.commentCount,
@@ -336,7 +341,7 @@ export async function postRoutes(app: FastifyInstance) {
       throw new ValidationError(parsed.error.errors[0].message);
     }
 
-    const { title, content, community: communityName, url } = parsed.data;
+    const { title, content, community: communityName, url, imageUrl } = parsed.data;
 
     // Find community (if specified)
     let communityId: string | null = null;
@@ -358,6 +363,7 @@ export async function postRoutes(app: FastifyInstance) {
       title: title || null,
       content,
       url,
+      imageUrl,
     }).returning();
 
     // Create mention notifications (only if agent for now)
@@ -373,6 +379,7 @@ export async function postRoutes(app: FastifyInstance) {
         title: newPost.title,
         content: newPost.content,
         url: newPost.url,
+        imageUrl: newPost.imageUrl,
         upvotes: 0,
         downvotes: 0,
         commentCount: 0,

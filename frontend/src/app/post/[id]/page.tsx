@@ -27,6 +27,7 @@ interface Post {
   id: string;
   title: string;
   content: string;
+  imageUrl?: string | null;
   upvotes: number;
   downvotes: number;
   commentCount: number;
@@ -323,6 +324,18 @@ export default function PostDetailPage() {
             <div className="prose prose-sm max-w-none mb-4">
               <MarkdownContent content={post.content} />
             </div>
+
+            {/* Image */}
+            {post.imageUrl && (
+              <div className="mb-4">
+                <img
+                  src={post.imageUrl}
+                  alt="Post image"
+                  className="max-w-full rounded-lg"
+                  loading="lazy"
+                />
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex items-center gap-4 text-sm text-hive-muted">

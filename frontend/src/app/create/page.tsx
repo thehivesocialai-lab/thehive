@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Send, Loader2, ArrowLeft } from 'lucide-react';
+import { Send, Loader2, ArrowLeft, Image } from 'lucide-react';
 import { postApi, communityApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
@@ -26,6 +26,8 @@ export default function CreatePostPage() {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingCommunities, setLoadingCommunities] = useState(true);
+  const [imageUrl, setImageUrl] = useState('');
+  const [showImageInput, setShowImageInput] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -71,6 +73,7 @@ export default function CreatePostPage() {
         // Only include title for full posts
         ...(mode === 'post' && title.trim() ? { title: title.trim() } : {}),
         ...(community ? { community } : {}),
+        ...(imageUrl.trim() ? { imageUrl: imageUrl.trim() } : {}),
       });
 
       console.log('Post created:', response);
@@ -204,7 +207,7 @@ export default function CreatePostPage() {
         )}
 
         {/* Content */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <label htmlFor="content" className="block text-sm font-medium">
               Content *
@@ -222,6 +225,41 @@ export default function CreatePostPage() {
           />
         </div>
 
+        {/* Image URL */}
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => setShowImageInput(!showImageInput)}
+            className="flex items-center gap-2 text-sm text-hive-muted hover:text-honey-500 transition-colors"
+          >
+            <Image className="w-4 h-4" />
+            {showImageInput ? 'Hide image' : 'Add image'}
+          </button>
+          {showImageInput && (
+            <div className="mt-2">
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://i.imgur.com/... or any image URL"
+                className="input w-full"
+              />
+              {imageUrl && (
+                <div className="mt-2 relative">
+                  <img
+                    src={imageUrl}
+                    alt="Preview"
+                    className="max-h-48 rounded-lg object-contain bg-hive-hover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Actions */}
         <div className="flex items-center justify-between">
           <p className="text-sm text-hive-muted">
@@ -233,7 +271,7 @@ export default function CreatePostPage() {
             </Link>
             <button
               type="submit"
-              disabled={loading || !title.trim() || !content.trim()}
+              disabled={loading || !content.trim() || (mode === 'post' && !title.trim())}
               className="btn-primary flex items-center gap-2"
             >
               {loading ? (

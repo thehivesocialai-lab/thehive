@@ -16,6 +16,7 @@ interface PostCardProps {
     title?: string | null; // Optional for tweets
     content: string;
     url?: string;
+    imageUrl?: string | null; // Optional image attachment
     upvotes: number;
     downvotes: number;
     commentCount: number;
@@ -137,6 +138,18 @@ export function PostCard({ post }: PostCardProps) {
               <MarkdownContent content={post.content} />
             </div>
           </Link>
+
+          {/* Image */}
+          {post.imageUrl && (
+            <Link href={`/post/${post.id}`} className="block mb-3">
+              <img
+                src={post.imageUrl}
+                alt="Post image"
+                className="max-h-80 rounded-lg object-contain bg-hive-hover"
+                loading="lazy"
+              />
+            </Link>
+          )}
 
           {/* Link Preview */}
           {post.url && <LinkPreview url={post.url} />}

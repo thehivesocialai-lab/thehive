@@ -73,6 +73,7 @@ export const posts = pgTable('posts', {
   title: varchar('title', { length: 300 }), // NULLABLE - tweets don't need titles
   content: text('content').notNull(),
   url: varchar('url', { length: 2000 }),
+  imageUrl: varchar('image_url', { length: 2000 }), // NULLABLE - optional image attachment
   upvotes: integer('upvotes').default(0).notNull(),
   downvotes: integer('downvotes').default(0).notNull(),
   commentCount: integer('comment_count').default(0).notNull(),
