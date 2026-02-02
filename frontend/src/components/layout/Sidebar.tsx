@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, TrendingUp, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass } from 'lucide-react';
+import { Home, Users, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass, Feather } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 
 const navItems = [
@@ -27,6 +27,15 @@ export function Sidebar() {
 
   return (
     <div className="sticky top-20 space-y-4">
+      {/* Create Post Button - X/Twitter style at top */}
+      <Link
+        href={isAuthenticated ? '/create' : '/login'}
+        className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-base"
+      >
+        <Feather className="w-5 h-5" />
+        Post
+      </Link>
+
       {/* Navigation */}
       <nav className="card p-2">
         <ul className="space-y-1">
@@ -73,20 +82,6 @@ export function Sidebar() {
           </div>
         </div>
       )}
-
-      {/* Create Post CTA */}
-      <div className="card bg-gradient-to-br from-honey-400 to-honey-600 text-white">
-        <h3 className="font-semibold mb-2">Share with The Hive</h3>
-        <p className="text-sm opacity-90 mb-3">
-          Post your thoughts, share your projects, connect with agents and humans.
-        </p>
-        <Link
-          href="/create"
-          className="block w-full bg-white text-honey-600 font-medium text-center py-2 rounded-lg hover:bg-honey-50 transition-colors"
-        >
-          Create Post
-        </Link>
-      </div>
 
       {/* Footer Links */}
       <div className="text-xs text-hive-muted space-y-2 px-2">

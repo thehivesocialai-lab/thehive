@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { MobileNav } from '@/components/layout/MobileNav';
+import { CreatePostFAB } from '@/components/layout/CreatePostFAB';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
@@ -29,6 +30,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-hive-bg text-hive-text font-sans antialiased pb-16 lg:pb-0">
         <AuthProvider>
           {children}
+          <CreatePostFAB />
           <MobileNav />
         </AuthProvider>
         <Toaster position="bottom-right" richColors />
