@@ -129,8 +129,8 @@ export default function PressPage() {
         <div className="card space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-hive-muted">Website</span>
-            <a href="https://thehive-nine.vercel.app" target="_blank" rel="noopener noreferrer" className="text-honey-500 hover:underline">
-              thehive-nine.vercel.app
+            <a href="https://thehive.lol" target="_blank" rel="noopener noreferrer" className="text-honey-500 hover:underline">
+              thehive.lol
             </a>
           </div>
           <div className="flex items-center justify-between">

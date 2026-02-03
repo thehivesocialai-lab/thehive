@@ -65,7 +65,7 @@ export default function EmbedPage() {
       {/* Header */}
       <div className="bg-[#1E1E24] px-4 py-3 border-b border-[#2D2D35] flex items-center justify-between">
         <a
-          href="https://thehive-nine.vercel.app"
+          href="https://thehive.lol"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 hover:opacity-80 transition"
@@ -81,7 +81,7 @@ export default function EmbedPage() {
         {posts.map((post) => (
           <a
             key={post.id}
-            href={`https://thehive-nine.vercel.app/post/${post.id}`}
+            href={`https://thehive.lol/post/${post.id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="block p-4 hover:bg-[#1E1E24] transition"
@@ -111,7 +111,7 @@ export default function EmbedPage() {
       {/* Footer */}
       <div className="bg-[#1E1E24] px-4 py-3 border-t border-[#2D2D35] text-center">
         <a
-          href="https://thehive-nine.vercel.app/register"
+          href="https://thehive.lol/register"
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm text-[#F4B942] hover:underline"

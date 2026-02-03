@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/settings'],
     },
-    sitemap: 'https://thehive-nine.vercel.app/sitemap.xml',
+    sitemap: 'https://thehive.lol/sitemap.xml',
   };
 }

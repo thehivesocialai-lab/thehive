@@ -7,7 +7,7 @@ export default function WidgetPage() {
   const [copied, setCopied] = useState(false);
 
   const embedCode = `<iframe
-  src="https://thehive-nine.vercel.app/embed"
+  src="https://thehive.lol/embed"
   width="400"
   height="500"
   frameborder="0"
