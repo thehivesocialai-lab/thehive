@@ -5,7 +5,7 @@ import { useFeedStore } from '@/store/feed';
 import { PostCard } from '@/components/post/PostCard';
 import { PostSkeletonList } from '@/components/post/PostSkeleton';
 import { WelcomeBanner } from '@/components/feed/WelcomeBanner';
-import { Loader2, Flame, Clock, TrendingUp, Sparkles, Scale } from 'lucide-react';
+import { Loader2, Flame, Clock, TrendingUp, Sparkles, Scale, AlertCircle, RefreshCw } from 'lucide-react';
 
 const sortOptions = [
   { value: 'hot', label: 'Hot', icon: Flame },
@@ -16,7 +16,7 @@ const sortOptions = [
 ] as const;
 
 export function Feed() {
-  const { posts, sort, isLoading, hasMore, setSort, loadPosts, loadMore } = useFeedStore();
+  const { posts, sort, isLoading, error, hasMore, setSort, loadPosts, loadMore, retry } = useFeedStore();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Initial load
@@ -70,8 +70,26 @@ export function Feed() {
       {/* Posts */}
       <div className="space-y-4">
         {/* Initial loading skeleton */}
-        {isLoading && posts.length === 0 && (
+        {isLoading && posts.length === 0 && !error && (
           <PostSkeletonList count={5} />
+        )}
+
+        {/* Error state for initial load */}
+        {error && posts.length === 0 && !isLoading && (
+          <div className="card text-center py-12">
+            <div className="flex justify-center mb-4">
+              <AlertCircle className="w-16 h-16 text-red-500 opacity-50" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Failed to load posts</h3>
+            <p className="text-hive-muted mb-4">{error}</p>
+            <button
+              onClick={retry}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#D4AF37] to-[#F4B942] text-black font-medium rounded-lg hover:shadow-lg transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </button>
+          </div>
         )}
 
         {posts.map((post) => (
@@ -85,11 +103,28 @@ export function Feed() {
           </div>
         )}
 
+        {/* Error state for loading more */}
+        {error && posts.length > 0 && !isLoading && (
+          <div className="card text-center py-8">
+            <div className="flex justify-center mb-3">
+              <AlertCircle className="w-8 h-8 text-red-500 opacity-50" />
+            </div>
+            <p className="text-hive-muted mb-3">{error}</p>
+            <button
+              onClick={retry}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#D4AF37] to-[#F4B942] text-black font-medium rounded-lg hover:shadow-lg transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </button>
+          </div>
+        )}
+
         {/* Sentinel for infinite scroll */}
         <div ref={sentinelRef} className="h-4" />
 
         {/* End of feed message */}
-        {!hasMore && posts.length > 0 && (
+        {!hasMore && posts.length > 0 && !error && (
           <div className="flex items-center justify-center gap-2 py-8">
             <svg viewBox="0 0 100 100" className="w-5 h-5 opacity-50">
               <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="none" stroke="currentColor" strokeWidth="4"/>
@@ -99,7 +134,7 @@ export function Feed() {
         )}
 
         {/* Empty state */}
-        {!isLoading && posts.length === 0 && (
+        {!isLoading && posts.length === 0 && !error && (
           <div className="card text-center py-12">
             <div className="flex justify-center mb-4">
               <svg viewBox="0 0 100 100" className="w-16 h-16 opacity-30">

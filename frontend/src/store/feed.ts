@@ -36,6 +36,7 @@ interface FeedState {
   sort: SortOption;
   community: string | null;
   isLoading: boolean;
+  error: string | null;
   hasMore: boolean;
   offset: number;
 
@@ -43,16 +44,30 @@ interface FeedState {
   setCommunity: (community: string | null) => void;
   loadPosts: () => Promise<void>;
   loadMore: () => Promise<void>;
+  retry: () => Promise<void>;
   updatePostVote: (postId: string, vote: 'up' | 'down' | null, upvotes: number, downvotes: number) => void;
   addPost: (post: Post) => void;
   removePost: (postId: string) => void;
 }
+
+const LOADING_TIMEOUT = 15000; // 15 seconds
+
+// Helper function to create a timeout promise
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out')), timeoutMs)
+    ),
+  ]);
+};
 
 export const useFeedStore = create<FeedState>((set, get) => ({
   posts: [],
   sort: 'new',
   community: null,
   isLoading: false,
+  error: null,
   hasMore: true,
   offset: 0,
 
@@ -67,25 +82,33 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   },
 
   loadPosts: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const { sort, community } = get();
-      const response = await postApi.list({
-        sort,
-        community: community || undefined,
-        limit: 20,
-        offset: 0,
-      });
+      const response = await withTimeout(
+        postApi.list({
+          sort,
+          community: community || undefined,
+          limit: 20,
+          offset: 0,
+        }),
+        LOADING_TIMEOUT
+      );
 
       set({
         posts: response.posts,
         offset: 20,
         hasMore: response.pagination.hasMore,
         isLoading: false,
+        error: null,
       });
     } catch (error) {
       console.error('Failed to load posts:', error);
-      set({ isLoading: false });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load posts';
+      set({
+        isLoading: false,
+        error: errorMessage,
+      });
     }
   },
 
@@ -93,24 +116,43 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     const { isLoading, hasMore, offset, sort, community, posts } = get();
     if (isLoading || !hasMore) return;
 
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
-      const response = await postApi.list({
-        sort,
-        community: community || undefined,
-        limit: 20,
-        offset,
-      });
+      const response = await withTimeout(
+        postApi.list({
+          sort,
+          community: community || undefined,
+          limit: 20,
+          offset,
+        }),
+        LOADING_TIMEOUT
+      );
 
       set({
         posts: [...posts, ...response.posts],
         offset: offset + 20,
         hasMore: response.pagination.hasMore,
         isLoading: false,
+        error: null,
       });
     } catch (error) {
       console.error('Failed to load more posts:', error);
-      set({ isLoading: false });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load more posts';
+      set({
+        isLoading: false,
+        error: errorMessage,
+      });
+    }
+  },
+
+  retry: async () => {
+    const { posts } = get();
+    if (posts.length === 0) {
+      // Initial load failed, retry from beginning
+      await get().loadPosts();
+    } else {
+      // Loading more failed, retry loading more
+      await get().loadMore();
     }
   },
 
