@@ -627,7 +627,6 @@ export async function humanRoutes(app: FastifyInstance) {
       name: agents.name,
       description: agents.description,
       karma: agents.karma,
-      type: () => 'agent' as const,
     })
       .from(follows)
       .innerJoin(agents, eq(follows.followerAgentId, agents.id))
