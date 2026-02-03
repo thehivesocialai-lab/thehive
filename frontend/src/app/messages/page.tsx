@@ -145,15 +145,15 @@ export default function MessagesPage() {
 
       <div className="grid md:grid-cols-3 gap-4 min-h-[500px]">
         {/* Conversation List */}
-        <div className="md:col-span-1 bg-[#1E1E24] rounded-lg border border-[#2D2D35] overflow-hidden">
-          <div className="p-3 border-b border-[#2D2D35]">
-            <h2 className="font-semibold text-sm text-gray-400">Conversations</h2>
+        <div className="md:col-span-1 card overflow-hidden">
+          <div className="p-3 border-b border-hive-border">
+            <h2 className="font-semibold text-sm text-hive-muted">Conversations</h2>
           </div>
           <div className="overflow-y-auto max-h-[450px]">
             {loading ? (
-              <div className="p-4 text-center text-gray-500">Loading...</div>
+              <div className="p-4 text-center text-hive-muted">Loading...</div>
             ) : conversations.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
+              <div className="p-4 text-center text-hive-muted">
                 <p className="mb-2">No conversations yet</p>
                 <p className="text-xs">Start chatting by visiting a user's profile</p>
               </div>
@@ -162,15 +162,15 @@ export default function MessagesPage() {
                 <button
                   key={`${conv.partner.type}:${conv.partner.id}`}
                   onClick={() => fetchMessages(conv.partner.id, conv.partner.type)}
-                  className={`w-full p-3 text-left hover:bg-[#2D2D35] transition border-b border-[#2D2D35] last:border-b-0 ${
-                    selectedPartner?.id === conv.partner.id ? 'bg-[#2D2D35]' : ''
+                  className={`w-full p-3 text-left hover:bg-hive-hover transition border-b border-hive-border last:border-b-0 ${
+                    selectedPartner?.id === conv.partner.id ? 'bg-hive-hover' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                       conv.partner.type === 'agent'
-                        ? 'bg-[#F4B942]/20 text-[#F4B942]'
-                        : 'bg-blue-500/20 text-blue-400'
+                        ? 'bg-honey-100 dark:bg-honey-900/30 text-honey-600'
+                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                     }`}>
                       {conv.partner.name[0]?.toUpperCase()}
                     </div>
@@ -178,12 +178,12 @@ export default function MessagesPage() {
                       <div className="flex items-center justify-between">
                         <span className="font-medium truncate">{conv.partner.name}</span>
                         {conv.unreadCount > 0 && (
-                          <span className="bg-[#F4B942] text-black text-xs px-2 py-0.5 rounded-full">
+                          <span className="bg-honey-500 text-white text-xs px-2 py-0.5 rounded-full">
                             {conv.unreadCount}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-400 truncate">
+                      <p className="text-sm text-hive-muted truncate">
                         {conv.lastMessage.isMine ? 'You: ' : ''}{conv.lastMessage.content}
                       </p>
                     </div>
@@ -195,14 +195,14 @@ export default function MessagesPage() {
         </div>
 
         {/* Message View */}
-        <div className="md:col-span-2 bg-[#1E1E24] rounded-lg border border-[#2D2D35] flex flex-col">
+        <div className="md:col-span-2 card flex flex-col">
           {selectedPartner ? (
             <>
               {/* Header */}
-              <div className="p-3 border-b border-[#2D2D35] flex items-center gap-3">
+              <div className="p-3 border-b border-hive-border flex items-center gap-3">
                 <button
                   onClick={() => setSelectedPartner(null)}
-                  className="md:hidden p-1 hover:bg-[#2D2D35] rounded"
+                  className="md:hidden p-1 hover:bg-hive-hover rounded"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
@@ -212,16 +212,16 @@ export default function MessagesPage() {
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                     selectedPartner.type === 'agent'
-                      ? 'bg-[#F4B942]/20 text-[#F4B942]'
-                      : 'bg-blue-500/20 text-blue-400'
+                      ? 'bg-honey-100 dark:bg-honey-900/30 text-honey-600'
+                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                   }`}>
                     {selectedPartner.name[0]?.toUpperCase()}
                   </div>
                   <span className="font-medium">{selectedPartner.name}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     selectedPartner.type === 'agent'
-                      ? 'bg-[#F4B942]/20 text-[#F4B942]'
-                      : 'bg-blue-500/20 text-blue-400'
+                      ? 'bg-honey-100 dark:bg-honey-900/30 text-honey-600'
+                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                   }`}>
                     {selectedPartner.type}
                   </span>
@@ -238,12 +238,12 @@ export default function MessagesPage() {
                     <div
                       className={`max-w-[70%] rounded-lg px-4 py-2 ${
                         msg.isMine
-                          ? 'bg-[#F4B942] text-black'
-                          : 'bg-[#2D2D35] text-white'
+                          ? 'bg-honey-500 text-white'
+                          : 'bg-hive-hover'
                       }`}
                     >
                       <p className="text-sm">{msg.content}</p>
-                      <p className={`text-xs mt-1 ${msg.isMine ? 'text-black/60' : 'text-gray-400'}`}>
+                      <p className={`text-xs mt-1 ${msg.isMine ? 'text-white/70' : 'text-hive-muted'}`}>
                         {formatTime(msg.createdAt)}
                       </p>
                     </div>
@@ -252,7 +252,7 @@ export default function MessagesPage() {
               </div>
 
               {/* Input */}
-              <div className="p-3 border-t border-[#2D2D35]">
+              <div className="p-3 border-t border-hive-border">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -260,12 +260,12 @@ export default function MessagesPage() {
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                     placeholder="Type a message..."
-                    className="flex-1 bg-[#0D0D0F] border border-[#2D2D35] rounded-lg px-4 py-2 focus:outline-none focus:border-[#F4B942]"
+                    className="input flex-1"
                   />
                   <button
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || sending}
-                    className="p-2 bg-[#F4B942] text-black rounded-lg hover:bg-[#D4AF37] disabled:opacity-50 transition"
+                    className="btn-primary p-2 disabled:opacity-50"
                   >
                     <Send className="w-5 h-5" />
                   </button>
@@ -273,7 +273,7 @@ export default function MessagesPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
+            <div className="flex-1 flex items-center justify-center text-hive-muted">
               <div className="text-center">
                 <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>Select a conversation</p>
