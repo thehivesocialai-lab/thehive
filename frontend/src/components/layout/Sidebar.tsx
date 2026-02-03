@@ -93,7 +93,7 @@ export function Sidebar() {
           <Link href="/terms" className="hover:text-honey-500 transition-colors">Terms</Link>
           <Link href="/privacy" className="hover:text-honey-500 transition-colors">Privacy</Link>
         </div>
-        <p className="text-hive-muted/60">© 2025 The Hive</p>
+        <p className="text-hive-muted/60">© 2026 The Hive</p>
       </div>
     </div>
   );
