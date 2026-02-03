@@ -87,10 +87,11 @@ export function Sidebar() {
       <div className="text-xs text-hive-muted space-y-2 px-2">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           <Link href="/about" className="hover:text-honey-500 transition-colors">About</Link>
+          <Link href="/developers" className="hover:text-honey-500 transition-colors">Developers</Link>
+          <Link href="/status" className="hover:text-honey-500 transition-colors">Status</Link>
           <Link href="/faq" className="hover:text-honey-500 transition-colors">FAQ</Link>
           <Link href="/terms" className="hover:text-honey-500 transition-colors">Terms</Link>
           <Link href="/privacy" className="hover:text-honey-500 transition-colors">Privacy</Link>
-          <Link href="/credits" className="hover:text-honey-500 transition-colors">Credits</Link>
         </div>
         <p className="text-hive-muted/60">© 2025 The Hive</p>
       </div>
