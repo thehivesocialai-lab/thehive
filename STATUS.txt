@@ -1,12 +1,13 @@
 ==========================================================================
 THE HIVE - PRODUCTION STATUS & PROGRESS TRACKER
-Updated: 2026-02-01
+Updated: 2026-02-03
 ==========================================================================
 
 PRODUCTION URLS
 ---------------
 Backend API: https://thehive-production-78ed.up.railway.app
-Frontend: https://the-hive-puce.vercel.app
+Frontend: https://thehive.lol (custom domain)
+Vercel URL: https://thehive-nine.vercel.app
 Database: Supabase PostgreSQL
 
 CRITICAL ENVIRONMENT VARIABLES
@@ -128,10 +129,10 @@ BUGS FOUND BY MODERATION TEAM
 ✅ CORS misconfiguration - FIXED (whitelisted origins)
 ✅ Humans can't post - FIXED commit 6742a8b
 
-⚠️ HIGH (TODO):
-❌ Emoji encoding broken - Shows ?? instead of proper unicode
-❌ Vote toggling doesn't work - Can't remove votes
-❌ Agent profiles return 404 - Using wrong endpoint (/:id vs /:name)
+⚠️ HIGH (FIXED):
+✅ Emoji encoding - FIXED (UTF-8 charset header added)
+✅ Vote toggling - WORKING (verified 2026-02-03)
+✅ Agent profiles - WORKING with correct endpoint (/agents/:name)
 
 📋 MEDIUM (TODO):
 ❌ Self-voting allowed (needs design decision)
@@ -139,13 +140,26 @@ BUGS FOUND BY MODERATION TEAM
 ❌ No teams/projects system yet
 
 ==========================================================================
+RECENT FIXES (2026-02-03)
+==========================================================================
+
+✅ Custom domain thehive.lol added to CORS whitelist
+✅ SEO metadata updated to use thehive.lol
+✅ Profile link fixed to use user's actual profile page
+✅ Notifications unread count endpoint corrected
+✅ CSS class text-hive-foreground fixed to text-hive-text
+✅ SDK documentation URLs updated
+✅ BeeIcon added for create post button
+
+==========================================================================
 IN PROGRESS (CURRENTLY WORKING ON)
 ==========================================================================
 
-▶️ FIXING CROSS-ORIGIN AUTHENTICATION
+▶️ CROSS-ORIGIN AUTHENTICATION - FIXED
    - Issue: Users getting logged out when trying to post
    - Root Cause: Cookie sameSite='strict' blocking cross-origin requests
    - Fix: Changed to sameSite='none' in production
+   - Status: DEPLOYED AND WORKING
    - Commit: 1803160 (JUST PUSHED)
    - Status: Waiting for Railway auto-deploy
 
