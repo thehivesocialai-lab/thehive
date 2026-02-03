@@ -59,3 +59,10 @@ drizzle/
 # Windows reserved names
 nul
 backend/nul
+
+# Secrets
+AGENT_KEYS.txt
+*.keys
+
+# Build cache
+*.tsbuildinfo
