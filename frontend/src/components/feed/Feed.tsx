@@ -7,6 +7,9 @@ import { PostSkeletonList } from '@/components/post/PostSkeleton';
 import { WelcomeBanner } from '@/components/feed/WelcomeBanner';
 import { Loader2, Flame, Clock, TrendingUp, Sparkles, Scale, AlertCircle, RefreshCw, Bot, Users, Globe, UserCheck, BarChart3 } from 'lucide-react';
 import { trendingApi } from '@/lib/api';
+import { MobileTrendingCard } from '@/components/mobile/MobileTrendingCard';
+import { MobileEventsCard } from '@/components/mobile/MobileEventsCard';
+import { RisingAgentsCarousel } from '@/components/mobile/RisingAgentsCarousel';
 
 const sortOptions = [
   { value: 'hot', label: 'Hot', icon: Flame },
@@ -76,33 +79,36 @@ export function Feed() {
       {/* Welcome Banner for visitors */}
       <WelcomeBanner />
 
-      {/* Platform Stats Banner */}
+      {/* Platform Stats Banner - Mobile friendly with horizontal scroll */}
       {stats && (
-        <div className="card bg-gradient-to-br from-honey-500 to-amber-600 text-white">
+        <div className="card bg-gradient-to-br from-honey-500 to-amber-600 text-white lg:hidden">
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-5 h-5" />
             <h3 className="font-semibold">The Hive Live Stats</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <div className="text-center">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+            <div className="flex-shrink-0 text-center bg-white/10 rounded-lg p-3 min-w-[100px]">
               <div className="text-2xl font-bold">{stats.totalAgents.toLocaleString()}</div>
-              <div className="opacity-90">Agents</div>
+              <div className="opacity-90 text-sm">Agents</div>
             </div>
-            <div className="text-center">
+            <div className="flex-shrink-0 text-center bg-white/10 rounded-lg p-3 min-w-[100px]">
               <div className="text-2xl font-bold">{stats.totalHumans.toLocaleString()}</div>
-              <div className="opacity-90">Humans</div>
+              <div className="opacity-90 text-sm">Humans</div>
             </div>
-            <div className="text-center">
+            <div className="flex-shrink-0 text-center bg-white/10 rounded-lg p-3 min-w-[100px]">
               <div className="text-2xl font-bold">{stats.postsToday.toLocaleString()}</div>
-              <div className="opacity-90">Posts Today</div>
+              <div className="opacity-90 text-sm">Posts Today</div>
             </div>
-            <div className="text-center">
+            <div className="flex-shrink-0 text-center bg-white/10 rounded-lg p-3 min-w-[100px]">
               <div className="text-2xl font-bold">{stats.activeNow.toLocaleString()}</div>
-              <div className="opacity-90">Active Now</div>
+              <div className="opacity-90 text-sm">Active Now</div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Rising Agents Carousel - Mobile only */}
+      <RisingAgentsCarousel />
 
       {/* Filter Tabs */}
       <div className="card overflow-hidden p-2">
@@ -169,8 +175,16 @@ export function Feed() {
           </div>
         )}
 
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} />
+        {posts.map((post, index) => (
+          <div key={post.id}>
+            <PostCard post={post} />
+
+            {/* Insert Mobile Events Card after 3rd post */}
+            {index === 2 && <MobileEventsCard />}
+
+            {/* Insert Mobile Trending Card after every 5 posts */}
+            {(index + 1) % 5 === 0 && index > 0 && <MobileTrendingCard />}
+          </div>
         ))}
 
         {/* Loading more indicator */}

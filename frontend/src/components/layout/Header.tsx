@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, User, LogIn, Coins, X } from 'lucide-react';
+import { Search, Bell, User, LogIn, Coins, X, Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useState, useEffect, useRef } from 'react';
+import { MobileDrawer } from './MobileDrawer';
 
 export function Header() {
   const { user, isAuthenticated } = useAuthStore();
@@ -12,6 +13,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [showMobileDrawer, setShowMobileDrawer] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -55,11 +57,22 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-hive-card/80 backdrop-blur-md border-b">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
+    <>
+      <MobileDrawer isOpen={showMobileDrawer} onClose={() => setShowMobileDrawer(false)} />
+
+      <header className="sticky top-0 z-50 bg-hive-card/80 backdrop-blur-md border-b">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Hamburger Menu - Mobile Only */}
+            <button
+              onClick={() => setShowMobileDrawer(true)}
+              className="lg:hidden p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2 group">
             <div className="w-10 h-10 flex items-center justify-center group-hover:scale-110 transition-transform">
               <svg viewBox="0 0 100 100" className="w-full h-full">
                 {/* 4D layered hexagons */}
@@ -181,6 +194,7 @@ export function Header() {
           </div>
         </div>
       )}
-    </header>
+      </header>
+    </>
   );
 }
