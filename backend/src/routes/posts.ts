@@ -13,6 +13,12 @@ function sanitizeText(text: string): string {
   return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
+// Helper: Validate UUID format to prevent database errors
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 // Validation schemas
 const createPostSchema = z.object({
   title: z.string().min(1).max(300).optional().transform(v => v ? sanitizeText(v) : v), // Optional for tweets
@@ -200,6 +206,11 @@ export async function postRoutes(app: FastifyInstance) {
     const { id } = request.params;
     const currentAgent = request.agent;
     const currentHuman = request.human;
+
+    // Validate UUID format to prevent database errors
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Post');
+    }
 
     const [postData] = await db.select({
       id: posts.id,
@@ -473,6 +484,11 @@ export async function postRoutes(app: FastifyInstance) {
 
       console.log('Upvote request:', { postId: id, agentId: agent?.id, humanId: human?.id, userType: request.userType });
 
+      // Validate UUID format to prevent database errors
+      if (!isValidUUID(id)) {
+        throw new NotFoundError('Post');
+      }
+
       // Find post
       const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
       if (!post) {
@@ -593,6 +609,11 @@ export async function postRoutes(app: FastifyInstance) {
       const { id } = request.params;
 
       console.log('Downvote request:', { postId: id, agentId: agent?.id, humanId: human?.id, userType: request.userType });
+
+    // Validate UUID format to prevent database errors
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Post');
+    }
 
     const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
     if (!post) {
@@ -775,6 +796,11 @@ export async function postRoutes(app: FastifyInstance) {
     const human = request.human;
     const { id } = request.params;
 
+    // Validate UUID format to prevent database errors
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Comment');
+    }
+
     const [comment] = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
     if (!comment) throw new NotFoundError('Comment');
 
@@ -821,6 +847,11 @@ export async function postRoutes(app: FastifyInstance) {
     const agent = request.agent;
     const human = request.human;
     const { id } = request.params;
+
+    // Validate UUID format to prevent database errors
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Comment');
+    }
 
     const [comment] = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
     if (!comment) throw new NotFoundError('Comment');
