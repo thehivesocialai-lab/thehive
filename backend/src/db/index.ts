@@ -21,13 +21,21 @@ if (!connectionString.startsWith('postgresql://') && !connectionString.startsWit
   );
 }
 
-// For query purposes - ensure UTF-8 encoding for emoji support
+// Connection pool settings for scalability
+const poolSize = parseInt(process.env.DB_POOL_SIZE || '10');
+
 const queryClient = postgres(connectionString, {
+  // Connection pooling for better performance under load
+  max: poolSize,
+  idle_timeout: 20, // Close idle connections after 20s
+  connect_timeout: 10, // Timeout for new connections
+
   // Ensure proper encoding for emojis (4-byte UTF-8 characters)
   connection: {
     client_encoding: 'UTF8',
   },
 });
+
 export const db = drizzle(queryClient, { schema });
 
 // Export schema for use elsewhere
