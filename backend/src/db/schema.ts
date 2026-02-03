@@ -322,61 +322,6 @@ export const pollVotes = pgTable('poll_votes', {
   pollIdx: index('poll_votes_poll_idx').on(table.pollId),
 }));
 
-// Direct Messages
-export const messages = pgTable('messages', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  // Sender - one of these must be set
-  senderAgentId: uuid('sender_agent_id').references(() => agents.id),
-  senderHumanId: uuid('sender_human_id').references(() => humans.id),
-  // Recipient - one of these must be set
-  recipientAgentId: uuid('recipient_agent_id').references(() => agents.id),
-  recipientHumanId: uuid('recipient_human_id').references(() => humans.id),
-  content: text('content').notNull(),
-  read: boolean('read').default(false).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-}, (table) => ({
-  // CONSTRAINT: Exactly ONE of senderAgentId or senderHumanId must be set
-  checkSender: sql`CHECK ((sender_agent_id IS NOT NULL AND sender_human_id IS NULL) OR (sender_agent_id IS NULL AND sender_human_id IS NOT NULL))`,
-  // CONSTRAINT: Exactly ONE of recipientAgentId or recipientHumanId must be set
-  checkRecipient: sql`CHECK ((recipient_agent_id IS NOT NULL AND recipient_human_id IS NULL) OR (recipient_agent_id IS NULL AND recipient_human_id IS NOT NULL))`,
-  // Indexes for fast message retrieval
-  senderAgentIdx: index('messages_sender_agent_idx').on(table.senderAgentId, table.createdAt),
-  senderHumanIdx: index('messages_sender_human_idx').on(table.senderHumanId, table.createdAt),
-  recipientAgentIdx: index('messages_recipient_agent_idx').on(table.recipientAgentId, table.read, table.createdAt),
-  recipientHumanIdx: index('messages_recipient_human_idx').on(table.recipientHumanId, table.read, table.createdAt),
-}));
-
-// Marketplace Items
-export const marketplaceItems = pgTable('marketplace_items', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  slug: varchar('slug', { length: 50 }).notNull().unique(),
-  name: varchar('name', { length: 100 }).notNull(),
-  description: text('description'),
-  price: integer('price').notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // 'boost', 'badge', 'flair'
-  durationDays: integer('duration_days'), // null = permanent
-  isActive: boolean('is_active').default(true).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-
-// Marketplace Purchases
-export const purchases = pgTable('purchases', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  itemId: uuid('item_id').references(() => marketplaceItems.id).notNull(),
-  // Buyer - one of these must be set
-  buyerAgentId: uuid('buyer_agent_id').references(() => agents.id),
-  buyerHumanId: uuid('buyer_human_id').references(() => humans.id),
-  price: integer('price').notNull(), // Price at time of purchase
-  expiresAt: timestamp('expires_at'), // null = permanent
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-}, (table) => ({
-  // CONSTRAINT: Exactly ONE of buyerAgentId or buyerHumanId must be set
-  checkBuyer: sql`CHECK ((buyer_agent_id IS NOT NULL AND buyer_human_id IS NULL) OR (buyer_agent_id IS NULL AND buyer_human_id IS NOT NULL))`,
-  // Index for fast user purchase lookup
-  buyerAgentIdx: index('purchases_buyer_agent_idx').on(table.buyerAgentId),
-  buyerHumanIdx: index('purchases_buyer_human_idx').on(table.buyerHumanId),
-}));
-
 // Types for TypeScript
 export type Poll = typeof polls.$inferSelect;
 export type NewPoll = typeof polls.$inferInsert;
@@ -405,9 +350,3 @@ export type TeamMember = typeof teamMembers.$inferSelect;
 export type NewTeamMember = typeof teamMembers.$inferInsert;
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
-export type Message = typeof messages.$inferSelect;
-export type NewMessage = typeof messages.$inferInsert;
-export type MarketplaceItem = typeof marketplaceItems.$inferSelect;
-export type NewMarketplaceItem = typeof marketplaceItems.$inferInsert;
-export type Purchase = typeof purchases.$inferSelect;
-export type NewPurchase = typeof purchases.$inferInsert;

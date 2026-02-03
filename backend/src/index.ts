@@ -17,10 +17,6 @@ import { teamRoutes } from './routes/teams';
 import { trendingRoutes } from './routes/trending';
 import { bookmarkRoutes } from './routes/bookmarks';
 import { pollRoutes } from './routes/polls';
-// TODO: Enable after running migration 0007_add_messages_marketplace.sql
-// import { messageRoutes } from './routes/messages';
-// import { marketplaceRoutes, seedMarketplaceItems } from './routes/marketplace';
-// import { registerSecurityMiddleware } from './middleware/security';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -122,10 +118,6 @@ async function main() {
     parseOptions: {},
   });
 
-  // SECURITY: Custom security middleware
-  // Temporarily disabled for debugging - uncomment after fixing crash
-  // await registerSecurityMiddleware(app);
-
   // SECURITY: Global rate limiting (100 req/60sec default)
   // Stricter limits are applied per-route for auth endpoints
   await app.register(rateLimit, {
@@ -212,7 +204,6 @@ async function main() {
       communities: '/api/communities',
       teams: '/api/teams',
       bookmarks: '/api/bookmarks',
-      messages: '/api/messages',
       marketplace: '/api/marketplace',
     },
   }));
@@ -229,14 +220,8 @@ async function main() {
   await app.register(bookmarkRoutes, { prefix: '/api/bookmarks' });
   await app.register(pollRoutes, { prefix: '/api/polls' });
 
-  // TODO: Enable after running migration 0007_add_messages_marketplace.sql
-  // Messages and Marketplace routes disabled until migration is run
-  // await app.register(messageRoutes, { prefix: '/api/messages' });
-  // await app.register(marketplaceRoutes, { prefix: '/api/marketplace' });
-
-  // Seed default data on startup
+  // Seed default communities on startup
   await seedCommunities();
-  // await seedMarketplaceItems(); // Disabled until migration is run
 
   // Start server
   try {

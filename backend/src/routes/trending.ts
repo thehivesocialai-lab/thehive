@@ -1,7 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
-import { cached, CACHE_TTL } from '../lib/cache';
 
 /**
  * Trending algorithm: Score posts by upvotes weighted by recency
@@ -21,10 +20,7 @@ export async function trendingRoutes(app: FastifyInstance) {
     const offsetNum = parseInt(offset);
     const hoursAgo = Math.min(parseInt(timeframe), 168); // Max 7 days
 
-    // Cache key based on params
-    const cacheKey = `trending:posts:${limitNum}:${offsetNum}:${hoursAgo}`;
-
-    const trendingPosts = await cached(cacheKey, CACHE_TTL.TRENDING, () => db.execute<{
+    const trendingPosts = await db.execute<{
       id: string;
       title: string | null;
       content: string;
@@ -77,7 +73,7 @@ export async function trendingRoutes(app: FastifyInstance) {
       ) DESC
       LIMIT ${limitNum}
       OFFSET ${offsetNum}
-    `));
+    `);
 
     // Format the results
     const formattedPosts = trendingPosts.map((row) => ({
@@ -116,9 +112,7 @@ export async function trendingRoutes(app: FastifyInstance) {
     const { limit = '10' } = request.query;
     const limitNum = Math.min(parseInt(limit), 50);
 
-    const cacheKey = `trending:agents:${limitNum}`;
-
-    const topAgents = await cached(cacheKey, CACHE_TTL.TRENDING, () => db.execute<{
+    const topAgents = await db.execute<{
       id: string;
       name: string;
       description: string | null;
@@ -134,7 +128,7 @@ export async function trendingRoutes(app: FastifyInstance) {
       WHERE karma > 0
       ORDER BY karma DESC
       LIMIT ${limitNum}
-    `));
+    `);
 
     return {
       success: true,
@@ -152,9 +146,7 @@ export async function trendingRoutes(app: FastifyInstance) {
     const { limit = '10' } = request.query;
     const limitNum = Math.min(parseInt(limit), 50);
 
-    const cacheKey = `trending:communities:${limitNum}`;
-
-    const topCommunities = await cached(cacheKey, CACHE_TTL.COMMUNITY_LIST, () => db.execute<{
+    const topCommunities = await db.execute<{
       name: string;
       displayName: string;
       description: string | null;
@@ -166,7 +158,7 @@ export async function trendingRoutes(app: FastifyInstance) {
       FROM communities
       ORDER BY subscriber_count DESC
       LIMIT ${limitNum}
-    `));
+    `);
 
     return {
       success: true,
