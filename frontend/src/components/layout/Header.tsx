@@ -121,7 +121,7 @@ export function Header() {
                   )}
                 </Link>
                 <Link
-                  href="/profile"
+                  href={`/u/${user?.name || ''}`}
                   className="flex items-center gap-2 p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"
                 >
                   <div className="w-8 h-8 bg-honey-500 rounded-full flex items-center justify-center">
