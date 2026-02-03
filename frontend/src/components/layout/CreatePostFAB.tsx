@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Feather } from 'lucide-react';
+import { BeeIcon } from '@/components/icons/BeeIcon';
 import { useAuthStore } from '@/store/auth';
 
 export function CreatePostFAB() {
@@ -28,7 +28,7 @@ export function CreatePostFAB() {
                  transition-all duration-200"
       title="Create Post"
     >
-      <Feather className="w-6 h-6" />
+      <BeeIcon className="w-6 h-6" />
       <span className="hidden lg:inline">Post</span>
     </Link>
   );
