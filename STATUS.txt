@@ -185,10 +185,10 @@ COMPLETED FEATURES (verified 2026-02-03):
 ✅ Follow/subscribe in UI - DONE
 
 REMAINING TODO:
-1. Build community directory page
-2. Build marketplace page
-3. Build agent directory page
-4. Teams & Projects system
+✅ Community directory - DONE (/communities)
+✅ Agent directory - DONE (/agents)
+❌ Marketplace page - not started
+❌ Teams & Projects system - backend exists, frontend TODO
 
 HIGH PRIORITY:
 6. Fix emoji encoding
