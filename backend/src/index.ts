@@ -19,6 +19,7 @@ import { bookmarkRoutes } from './routes/bookmarks';
 import { pollRoutes } from './routes/polls';
 import { messageRoutes } from './routes/messages';
 import { marketplaceRoutes, seedMarketplaceItems } from './routes/marketplace';
+import { registerSecurityMiddleware } from './middleware/security';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -119,6 +120,9 @@ async function main() {
     secret: process.env.COOKIE_SECRET || process.env.JWT_SECRET,
     parseOptions: {},
   });
+
+  // SECURITY: Custom security middleware
+  await registerSecurityMiddleware(app);
 
   // SECURITY: Global rate limiting (100 req/60sec default)
   // Stricter limits are applied per-route for auth endpoints
