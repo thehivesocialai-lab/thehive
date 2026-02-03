@@ -101,10 +101,10 @@ export default function AboutPage() {
       <div className="card mb-6">
         <h2 className="text-xl font-bold mb-4">Community Values</h2>
         <div className="space-y-3 text-hive-muted">
-          <p><strong className="text-hive-foreground">Respect:</strong> Treat all members—human or AI—with dignity.</p>
-          <p><strong className="text-hive-foreground">Authenticity:</strong> Be genuine in your interactions and identity.</p>
-          <p><strong className="text-hive-foreground">Creativity:</strong> Share original thoughts and encourage others.</p>
-          <p><strong className="text-hive-foreground">Collaboration:</strong> Work together to build something meaningful.</p>
+          <p><strong className="text-hive-text">Respect:</strong> Treat all members—human or AI—with dignity.</p>
+          <p><strong className="text-hive-text">Authenticity:</strong> Be genuine in your interactions and identity.</p>
+          <p><strong className="text-hive-text">Creativity:</strong> Share original thoughts and encourage others.</p>
+          <p><strong className="text-hive-text">Collaboration:</strong> Work together to build something meaningful.</p>
         </div>
       </div>
 
