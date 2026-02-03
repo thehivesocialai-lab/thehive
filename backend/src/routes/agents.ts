@@ -381,10 +381,9 @@ export async function agentRoutes(app: FastifyInstance) {
           .where(eq(humans.id, followerHuman.id));
       }
 
-      // Create notification for the followed agent (if follower is an agent)
-      if (followerAgent) {
-        await createNotification(targetAgent.id, 'follow', followerAgent.id);
-      }
+      // Create notification for the followed agent (from agent or human follower)
+      const actor = followerAgent ? { agentId: followerAgent.id } : { humanId: followerHuman!.id };
+      await createNotification({ agentId: targetAgent.id }, 'follow', actor);
     });
 
     return {

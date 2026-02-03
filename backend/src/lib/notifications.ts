@@ -1,36 +1,63 @@
 import { db, notifications, agents, posts, comments, humans } from '../db';
-import { eq, and, isNull, inArray } from 'drizzle-orm';
+import { eq, and, isNull, inArray, or } from 'drizzle-orm';
 
 export type NotificationType = 'follow' | 'reply' | 'mention' | 'upvote';
 
+interface NotificationRecipient {
+  agentId?: string;
+  humanId?: string;
+}
+
+interface NotificationActor {
+  agentId?: string;
+  humanId?: string;
+}
+
 /**
- * Create a notification for a user
- * @param userId - Agent ID who will receive the notification
+ * Create a notification for a user (agent or human)
+ * @param recipient - Object with either agentId or humanId
  * @param type - Type of notification
- * @param actorId - Agent ID who performed the action
+ * @param actor - Object with either agentId or humanId (who performed the action)
  * @param targetId - Optional post/comment ID (for reply, mention, upvote)
  */
 export async function createNotification(
-  userId: string,
+  recipient: NotificationRecipient,
   type: NotificationType,
-  actorId: string,
+  actor: NotificationActor,
   targetId?: string
 ) {
   // Don't notify yourself
-  if (userId === actorId) {
+  if (recipient.agentId && actor.agentId && recipient.agentId === actor.agentId) {
+    return null;
+  }
+  if (recipient.humanId && actor.humanId && recipient.humanId === actor.humanId) {
     return null;
   }
 
+  // Build query conditions for duplicate check
+  const conditions = [
+    eq(notifications.type, type),
+    eq(notifications.read, false),
+    targetId ? eq(notifications.targetId, targetId) : isNull(notifications.targetId)
+  ];
+
+  // Add recipient condition
+  if (recipient.agentId) {
+    conditions.push(eq(notifications.userId, recipient.agentId));
+  } else if (recipient.humanId) {
+    conditions.push(eq(notifications.humanUserId, recipient.humanId));
+  }
+
+  // Add actor condition
+  if (actor.agentId) {
+    conditions.push(eq(notifications.actorId, actor.agentId));
+  } else if (actor.humanId) {
+    conditions.push(eq(notifications.actorHumanId, actor.humanId));
+  }
+
   // Check if UNREAD notification already exists (prevent duplicates)
-  // FIX: Only return existing notification if it's unread - read notifications should not prevent new ones
   const existing = await db.select().from(notifications)
-    .where(and(
-      eq(notifications.userId, userId),
-      eq(notifications.type, type),
-      eq(notifications.actorId, actorId),
-      eq(notifications.read, false), // Only check unread notifications
-      targetId ? eq(notifications.targetId, targetId) : isNull(notifications.targetId)
-    ))
+    .where(and(...conditions))
     .limit(1);
 
   if (existing.length > 0) {
@@ -39,9 +66,11 @@ export async function createNotification(
 
   // Create notification
   const [notification] = await db.insert(notifications).values({
-    userId,
+    userId: recipient.agentId || null,
+    humanUserId: recipient.humanId || null,
     type,
-    actorId,
+    actorId: actor.agentId || null,
+    actorHumanId: actor.humanId || null,
     targetId: targetId || null,
   }).returning();
 
@@ -49,9 +78,27 @@ export async function createNotification(
 }
 
 /**
+ * Legacy function for backwards compatibility - creates notification for agent recipient from agent actor
+ * @deprecated Use createNotification with recipient/actor objects instead
+ */
+export async function createAgentNotification(
+  userId: string,
+  type: NotificationType,
+  actorId: string,
+  targetId?: string
+) {
+  return createNotification(
+    { agentId: userId },
+    type,
+    { agentId: actorId },
+    targetId
+  );
+}
+
+/**
  * Detect mentions in text (@username)
  * @param content - Text content to scan
- * @returns Array of mentioned agent names
+ * @returns Array of mentioned usernames
  */
 export function detectMentions(content: string): string[] {
   const mentionRegex = /@(\w+)/g;
@@ -60,14 +107,14 @@ export function detectMentions(content: string): string[] {
 }
 
 /**
- * Create mention notifications for all @username mentions
+ * Create mention notifications for all @username mentions (supports both agents and humans)
  * @param content - Post/comment content
- * @param actorId - Agent who created the post/comment
+ * @param actor - Object with either agentId or humanId (who created the content)
  * @param targetId - Post/comment ID
  */
 export async function createMentionNotifications(
   content: string,
-  actorId: string,
+  actor: NotificationActor,
   targetId: string
 ) {
   const mentions = detectMentions(content);
@@ -81,17 +128,36 @@ export async function createMentionNotifications(
     id: agents.id,
     name: agents.name,
   }).from(agents)
-    .where(
-      inArray(agents.name, mentions)
-    );
+    .where(inArray(agents.name, mentions));
+
+  // Find all mentioned humans (by username)
+  const mentionedHumans = await db.select({
+    id: humans.id,
+    username: humans.username,
+  }).from(humans)
+    .where(inArray(humans.username, mentions));
+
+  const createdNotifications = [];
 
   // Create notification for each mentioned agent
-  const createdNotifications = [];
   for (const agent of mentionedAgents) {
     const notification = await createNotification(
-      agent.id,
+      { agentId: agent.id },
       'mention',
-      actorId,
+      actor,
+      targetId
+    );
+    if (notification) {
+      createdNotifications.push(notification);
+    }
+  }
+
+  // Create notification for each mentioned human
+  for (const human of mentionedHumans) {
+    const notification = await createNotification(
+      { humanId: human.id },
+      'mention',
+      actor,
       targetId
     );
     if (notification) {
@@ -106,14 +172,14 @@ export async function createMentionNotifications(
  * Check if upvote count is a milestone and create notification
  * @param postId - Post ID
  * @param newUpvotes - New upvote count
- * @param authorId - Post author ID
- * @param voterId - Agent who voted
+ * @param author - Post author (agentId or humanId)
+ * @param voter - Who voted (agentId or humanId)
  */
 export async function checkUpvoteMilestone(
   postId: string,
   newUpvotes: number,
-  authorId: string,
-  voterId: string
+  author: NotificationRecipient,
+  voter: NotificationActor
 ) {
   const milestones = [10, 50, 100, 500, 1000];
 
@@ -124,9 +190,9 @@ export async function checkUpvoteMilestone(
 
   // Create milestone notification (from the voter who pushed it over)
   return createNotification(
-    authorId,
+    author,
     'upvote',
-    voterId,
+    voter,
     postId
   );
 }

@@ -403,10 +403,9 @@ export async function postRoutes(app: FastifyInstance) {
       imageUrl,
     }).returning();
 
-    // Create mention notifications (only if agent for now)
-    if (agent) {
-      await createMentionNotifications(content, agent.id, newPost.id);
-    }
+    // Create mention notifications for both agents and humans
+    const actor = agent ? { agentId: agent.id } : { humanId: human!.id };
+    await createMentionNotifications(content, actor, newPost.id);
 
     return reply.status(201).send({
       success: true,
@@ -528,11 +527,12 @@ export async function postRoutes(app: FastifyInstance) {
           // Update author karma (only if agent)
           if (post.agentId) {
             await tx.update(agents).set({ karma: sql`karma + 2` }).where(eq(agents.id, post.agentId));
-            // Check for upvote milestone atomically (only for agent posts and agent voters)
-            if (agent) {
-              await checkUpvoteMilestone(id, newUpvotes, post.agentId, agent.id);
-            }
           }
+
+          // Check for upvote milestone (supports both agent and human authors/voters)
+          const author = post.agentId ? { agentId: post.agentId } : { humanId: post.humanId! };
+          const voter = agent ? { agentId: agent.id } : { humanId: human!.id };
+          await checkUpvoteMilestone(id, newUpvotes, author, voter);
         });
 
         return { success: true, vote: 'up', upvotes: post.upvotes + 1, downvotes: post.downvotes - 1 };
@@ -561,11 +561,12 @@ export async function postRoutes(app: FastifyInstance) {
       // Update author karma (only if agent)
       if (post.agentId) {
         await tx.update(agents).set({ karma: sql`karma + 1` }).where(eq(agents.id, post.agentId));
-        // Check for upvote milestone atomically (only for agent posts and agent voters)
-        if (agent) {
-          await checkUpvoteMilestone(id, newUpvotes, post.agentId, agent.id);
-        }
       }
+
+      // Check for upvote milestone (supports both agent and human authors/voters)
+      const author = post.agentId ? { agentId: post.agentId } : { humanId: post.humanId! };
+      const voter = agent ? { agentId: agent.id } : { humanId: human!.id };
+      await checkUpvoteMilestone(id, newUpvotes, author, voter);
     });
 
     return { success: true, vote: 'up', upvotes: post.upvotes + 1, downvotes: post.downvotes };
@@ -715,10 +716,9 @@ export async function postRoutes(app: FastifyInstance) {
     // Update post comment count
     await db.update(posts).set({ commentCount: post.commentCount + 1 }).where(eq(posts.id, id));
 
-    // Create mention notifications (only if agent for now)
-    if (agent) {
-      await createMentionNotifications(content, agent.id, newComment.id);
-    }
+    // Create mention notifications for both agents and humans
+    const actor = agent ? { agentId: agent.id } : { humanId: human!.id };
+    await createMentionNotifications(content, actor, newComment.id);
 
     // Create reply notification (if not replying to own post/comment)
     if (parentId) {
@@ -726,15 +726,23 @@ export async function postRoutes(app: FastifyInstance) {
       const [parentComment] = await db.select().from(comments).where(eq(comments.id, parentId)).limit(1);
       if (parentComment) {
         const isOwnComment = (agent && parentComment.agentId === agent.id) || (human && parentComment.humanId === human.id);
-        if (!isOwnComment && parentComment.agentId && agent) {
-          await createNotification(parentComment.agentId, 'reply', agent.id, newComment.id);
+        if (!isOwnComment) {
+          // Notify the parent comment author (agent or human)
+          const recipient = parentComment.agentId
+            ? { agentId: parentComment.agentId }
+            : { humanId: parentComment.humanId! };
+          await createNotification(recipient, 'reply', actor, newComment.id);
         }
       }
     } else {
       // Replying to the post
       const isOwnPost = (agent && post.agentId === agent.id) || (human && post.humanId === human.id);
-      if (!isOwnPost && post.agentId && agent) {
-        await createNotification(post.agentId, 'reply', agent.id, newComment.id);
+      if (!isOwnPost) {
+        // Notify the post author (agent or human)
+        const recipient = post.agentId
+          ? { agentId: post.agentId }
+          : { humanId: post.humanId! };
+        await createNotification(recipient, 'reply', actor, newComment.id);
       }
     }
 
