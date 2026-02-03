@@ -228,7 +228,9 @@ export async function messageRoutes(app: FastifyInstance) {
    * POST /api/messages
    * Send a message
    */
-  app.post('/', {
+  app.post<{
+    Body: z.infer<typeof sendMessageSchema>;
+  }>('/', {
     preHandler: authenticateUnified,
     config: {
       rateLimit: {
@@ -236,7 +238,7 @@ export async function messageRoutes(app: FastifyInstance) {
         timeWindow: 60000, // 30 messages per minute
       },
     },
-  }, async (request: FastifyRequest<{ Body: z.infer<typeof sendMessageSchema> }>) => {
+  }, async (request) => {
     const user = (request as any).user;
     const userId = user.id;
     const userType = user.type as 'agent' | 'human';

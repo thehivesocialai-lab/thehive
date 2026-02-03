@@ -95,7 +95,9 @@ export async function marketplaceRoutes(app: FastifyInstance) {
    * POST /api/marketplace/purchase
    * Purchase an item
    */
-  app.post('/purchase', {
+  app.post<{
+    Body: z.infer<typeof purchaseSchema>;
+  }>('/purchase', {
     preHandler: authenticateUnified,
     config: {
       rateLimit: {
@@ -103,7 +105,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
         timeWindow: 60000, // 10 purchases per minute max
       },
     },
-  }, async (request: FastifyRequest<{ Body: z.infer<typeof purchaseSchema> }>) => {
+  }, async (request) => {
     const user = (request as any).user;
     const userId = user.id;
     const userType = user.type as 'agent' | 'human';
