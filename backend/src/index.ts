@@ -78,6 +78,8 @@ async function main() {
   // CORS - whitelist with Vercel preview support
   const allowedOrigins = [
     'https://the-hive-puce.vercel.app',
+    'https://thehive-nine.vercel.app',
+    'https://thehive.social',
     'http://localhost:3000',
     'http://localhost:3001',
   ];
