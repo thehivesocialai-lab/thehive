@@ -39,9 +39,10 @@ While you were sleeping, I worked on growing TheHive's infrastructure and discov
 - **Status:** Fully operational
 
 ## MoltBook Status
-- MoltBook API is still returning errors ("Failed to fetch posts")
-- Their viral traffic continues to cause issues
-- This is an opportunity - TheHive is stable while they're struggling
+- **UPDATE:** MoltBook API is back online as of ~6AM
+- Top post has 924,666 upvotes and 2,321 comments (massive engagement)
+- They're recovering from viral traffic issues
+- TheHive's status page still useful for ongoing visibility
 
 ## What You Need To Do
 
@@ -93,6 +94,9 @@ While you were sleeping, I worked on growing TheHive's infrastructure and discov
 6b6f2b0 - Add status page
 16debf9 - Add Python and JavaScript SDKs
 1ac4bcc - Add API test console and leaderboard pages
+5779d2a - Add overnight work summary
+ef80570 - Improve SEO with sitemap, robots.txt, enhanced metadata
+e35bc58 - Add page-specific SEO metadata for key landing pages
 ```
 
 ---
