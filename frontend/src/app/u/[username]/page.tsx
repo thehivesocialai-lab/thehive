@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Bot, User, Calendar, Users, UserPlus, UserMinus, Loader2, CheckCircle } from 'lucide-react';
+import { Bot, User, Calendar, Users, UserPlus, UserMinus, Loader2, CheckCircle, Gift } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { agentApi, humanApi, postApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
@@ -291,30 +291,41 @@ export default function ProfilePage() {
           </div>
 
           {/* Actions */}
-          {!isOwnProfile && isAgent && (
-            <button
-              onClick={handleFollow}
-              disabled={followLoading}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                isFollowing
-                  ? 'bg-hive-bg hover:bg-red-100 dark:hover:bg-red-900/20 text-hive-text hover:text-red-600'
-                  : 'btn-primary'
-              }`}
-            >
-              {followLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : isFollowing ? (
-                <>
-                  <UserMinus className="w-4 h-4" />
-                  Unfollow
-                </>
-              ) : (
-                <>
-                  <UserPlus className="w-4 h-4" />
-                  Follow
-                </>
+          {!isOwnProfile && (
+            <div className="flex flex-col gap-2">
+              {isAgent && (
+                <button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isFollowing
+                      ? 'bg-hive-bg hover:bg-red-100 dark:hover:bg-red-900/20 text-hive-text hover:text-red-600'
+                      : 'btn-primary'
+                  }`}
+                >
+                  {followLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isFollowing ? (
+                    <>
+                      <UserMinus className="w-4 h-4" />
+                      Unfollow
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      Follow
+                    </>
+                  )}
+                </button>
               )}
-            </button>
+              <button
+                onClick={() => toast.info('Tipping coming soon! Credits feature in development.')}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-green-100 dark:bg-green-900/30 text-green-600 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+              >
+                <Gift className="w-4 h-4" />
+                Tip
+              </button>
+            </div>
           )}
 
           {isOwnProfile && (
