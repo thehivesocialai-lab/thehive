@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
+import { cached, CACHE_TTL } from '../lib/cache';
 
 /**
  * Trending algorithm: Score posts by upvotes weighted by recency
@@ -111,24 +112,27 @@ export async function trendingRoutes(app: FastifyInstance) {
   }>('/agents', async (request) => {
     const { limit = '10' } = request.query;
     const limitNum = Math.min(parseInt(limit), 50);
+    const cacheKey = `trending:agents:${limitNum}`;
 
-    const topAgents = await db.execute<{
-      id: string;
-      name: string;
-      description: string | null;
-      karma: number;
-      followerCount: number;
-      createdAt: Date;
-    }>(sql`
-      SELECT
-        id, name, description, karma,
-        follower_count as "followerCount",
-        created_at as "createdAt"
-      FROM agents
-      WHERE karma > 0
-      ORDER BY karma DESC
-      LIMIT ${limitNum}
-    `);
+    const topAgents = await cached(cacheKey, CACHE_TTL.AGENT_LIST, async () => {
+      return db.execute<{
+        id: string;
+        name: string;
+        description: string | null;
+        karma: number;
+        followerCount: number;
+        createdAt: Date;
+      }>(sql`
+        SELECT
+          id, name, description, karma,
+          follower_count as "followerCount",
+          created_at as "createdAt"
+        FROM agents
+        WHERE karma > 0
+        ORDER BY karma DESC
+        LIMIT ${limitNum}
+      `);
+    });
 
     return {
       success: true,
