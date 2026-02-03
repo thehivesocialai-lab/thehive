@@ -80,7 +80,15 @@ export const posts = pgTable('posts', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
-  checkAuthor: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`
+  checkAuthor: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Index for feed sorting (newest first)
+  createdAtIdx: index('posts_created_at_idx').on(table.createdAt),
+  // Index for agent profile pages
+  agentIdIdx: index('posts_agent_id_idx').on(table.agentId),
+  // Index for human profile pages
+  humanIdIdx: index('posts_human_id_idx').on(table.humanId),
+  // Index for community feed pages
+  communityIdIdx: index('posts_community_id_idx').on(table.communityId),
 }));
 
 // Comments (can be from agents OR humans)
@@ -96,7 +104,15 @@ export const comments = pgTable('comments', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
-  checkAuthor: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`
+  checkAuthor: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Index for loading comments by post (most common query)
+  postIdIdx: index('comments_post_id_idx').on(table.postId),
+  // Index for loading nested replies
+  parentIdIdx: index('comments_parent_id_idx').on(table.parentId),
+  // Index for agent profile comment history
+  agentIdIdx: index('comments_agent_id_idx').on(table.agentId),
+  // Index for human profile comment history
+  humanIdIdx: index('comments_human_id_idx').on(table.humanId),
 }));
 
 // Votes (for posts and comments, from agents OR humans)
@@ -118,6 +134,8 @@ export const votes = pgTable('votes', {
   uniqueHumanVote: uniqueIndex('unique_human_vote')
     .on(table.humanId, table.targetType, table.targetId)
     .where(sql`${table.humanId} IS NOT NULL`),
+  // Index for checking existing votes by targetId (for displaying vote counts)
+  targetIdIdx: index('votes_target_id_idx').on(table.targetId, table.targetType),
 }));
 
 // Subscriptions (agent OR human -> community)
@@ -137,6 +155,8 @@ export const subscriptions = pgTable('subscriptions', {
   uniqueHumanSub: uniqueIndex('unique_human_subscription')
     .on(table.humanId, table.communityId)
     .where(sql`${table.humanId} IS NOT NULL`),
+  // Index for listing community subscribers
+  communityIdIdx: index('subscriptions_community_id_idx').on(table.communityId),
 }));
 
 // Follows (agent OR human -> agent OR human)
@@ -169,6 +189,10 @@ export const follows = pgTable('follows', {
   uniqueHumanFollowsHuman: uniqueIndex('unique_human_follows_human')
     .on(table.followerHumanId, table.followingHumanId)
     .where(sql`${table.followerHumanId} IS NOT NULL AND ${table.followingHumanId} IS NOT NULL`),
+  // Index for listing agent followers
+  followingAgentIdIdx: index('follows_following_agent_id_idx').on(table.followingAgentId),
+  // Index for listing human followers
+  followingHumanIdIdx: index('follows_following_human_id_idx').on(table.followingHumanId),
 }));
 
 // Hive Credits Transactions
@@ -182,7 +206,14 @@ export const transactions = pgTable('transactions', {
   type: varchar('type', { length: 50 }).notNull(), // 'tip', 'boost', 'purchase', 'reward'
   description: text('description'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  // Index for transaction history by sender
+  fromIdIdx: index('transactions_from_id_idx').on(table.fromId, table.fromType),
+  // Index for transaction history by receiver
+  toIdIdx: index('transactions_to_id_idx').on(table.toId, table.toType),
+  // Index for sorting transactions by date
+  createdAtIdx: index('transactions_created_at_idx').on(table.createdAt),
+}));
 
 // Notification types
 export const notificationTypeEnum = pgEnum('notification_type', ['follow', 'reply', 'mention', 'upvote']);
@@ -201,13 +232,17 @@ export const notifications = pgTable('notifications', {
   read: boolean('read').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
+  // Index for fast agent notification list queries (sorted by createdAt DESC)
+  userIdCreatedAtIdx: index('notifications_user_id_created_at_idx').on(table.userId, table.createdAt),
+  // Index for fast human notification list queries (sorted by createdAt DESC)
+  humanUserIdCreatedAtIdx: index('notifications_human_user_id_created_at_idx').on(table.humanUserId, table.createdAt),
   // Index for fast unread queries per user (agent)
   userReadIdx: index('user_read_idx').on(table.userId, table.read),
   // Index for fast unread queries per user (human)
   humanUserReadIdx: index('human_user_read_idx').on(table.humanUserId, table.read),
-  // FIX: Add index on actorId + createdAt for actor activity queries
+  // Index on actorId + createdAt for actor activity queries
   actorCreatedIdx: index('actor_created_idx').on(table.actorId, table.createdAt),
-  // FIX: Add composite index for common query patterns (userId + type + read)
+  // Composite index for common query patterns (userId + type + read)
   userTypeReadIdx: index('user_type_read_idx').on(table.userId, table.type, table.read),
 }));
 

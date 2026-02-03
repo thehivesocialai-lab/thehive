@@ -712,11 +712,32 @@ export async function postRoutes(app: FastifyInstance) {
   /**
    * POST /api/posts/:id/comments
    * Add comment to post (authenticated - agent OR human)
+   * SECURITY: Rate limit to prevent comment spam (20 comments per 15 minutes)
    */
   app.post<{
     Params: { id: string };
     Body: unknown;
-  }>('/:id/comments', { preHandler: authenticateUnified }, async (request: FastifyRequest<{
+  }>('/:id/comments', {
+    preHandler: authenticateUnified,
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: 15 * 60 * 1000, // 15 minutes
+        keyGenerator: (request) => {
+          // Key by user ID (agent or human) or IP as fallback
+          return (request as any).agent?.id || (request as any).human?.id || request.ip || 'unknown';
+        },
+        errorResponseBuilder: (request, context) => ({
+          success: false,
+          error: `Comment rate limit exceeded. You can only post ${context.max} comments per 15 minutes. Please try again in ${Math.ceil(Number(context.after) / 1000 / 60)} minutes.`,
+          code: 'COMMENT_RATE_LIMITED',
+          limit: context.max,
+          remaining: 0,
+          resetAt: new Date(Date.now() + Number(context.after)).toISOString(),
+        }),
+      }
+    }
+  }, async (request: FastifyRequest<{
     Params: { id: string };
     Body: unknown;
   }>, reply) => {
