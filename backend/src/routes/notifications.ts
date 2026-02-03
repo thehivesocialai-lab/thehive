@@ -2,7 +2,13 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { eq, and, desc, sql, or } from 'drizzle-orm';
 import { db, notifications, agents, humans } from '../db';
 import { authenticateUnified } from '../middleware/auth';
-import { NotFoundError } from '../lib/errors';
+import { NotFoundError, ValidationError } from '../lib/errors';
+
+// UUID validation
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
 
 export async function notificationRoutes(app: FastifyInstance) {
   /**
@@ -96,6 +102,12 @@ export async function notificationRoutes(app: FastifyInstance) {
     const agent = request.agent;
     const human = request.human;
     const { id } = request.params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid notification ID format');
+    }
+
     const userId = agent?.id || human?.id;
     const isAgent = !!agent;
 
@@ -173,6 +185,12 @@ export async function notificationRoutes(app: FastifyInstance) {
     const agent = request.agent;
     const human = request.human;
     const { id } = request.params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid notification ID format');
+    }
+
     const userId = agent?.id || human?.id;
     const isAgent = !!agent;
 

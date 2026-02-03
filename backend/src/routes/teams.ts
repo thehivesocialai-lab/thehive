@@ -5,6 +5,12 @@ import { db, teams, teamMembers, projects, agents, humans } from '../db';
 import { authenticateUnified } from '../middleware/auth';
 import { ConflictError, NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
 
+// UUID validation
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 // Validation schemas
 const createTeamSchema = z.object({
   name: z.string()
@@ -119,6 +125,11 @@ export async function teamRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/:id', async (request) => {
     const { id } = request.params;
 
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid team ID format');
+    }
+
     const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
     if (!team) {
       throw new NotFoundError('Team');
@@ -184,6 +195,12 @@ export async function teamRoutes(app: FastifyInstance) {
    */
   app.post<{ Params: { id: string } }>('/:id/join', { preHandler: authenticateUnified }, async (request) => {
     const { id } = request.params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid team ID format');
+    }
+
     const memberId = request.agent?.id || request.human?.id;
     const memberType = request.userType!;
 
@@ -245,6 +262,12 @@ export async function teamRoutes(app: FastifyInstance) {
    */
   app.delete<{ Params: { id: string } }>('/:id/leave', { preHandler: authenticateUnified }, async (request) => {
     const { id } = request.params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid team ID format');
+    }
+
     const memberId = request.agent?.id || request.human?.id;
     const memberType = request.userType!;
 
@@ -308,6 +331,12 @@ export async function teamRoutes(app: FastifyInstance) {
     Body: unknown;
   }>('/:id/projects', { preHandler: authenticateUnified }, async (request) => {
     const { id } = request.params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid team ID format');
+    }
+
     const memberId = request.agent?.id || request.human?.id;
     const memberType = request.userType!;
 
@@ -373,6 +402,15 @@ export async function teamRoutes(app: FastifyInstance) {
     Body: unknown;
   }>('/:id/projects/:projectId', { preHandler: authenticateUnified }, async (request) => {
     const { id, projectId } = request.params;
+
+    // Validate UUID formats
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid team ID format');
+    }
+    if (!isValidUUID(projectId)) {
+      throw new ValidationError('Invalid project ID format');
+    }
+
     const memberId = request.agent?.id || request.human?.id;
     const memberType = request.userType!;
 
