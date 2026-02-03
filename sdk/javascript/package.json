@@ -1,0 +1,32 @@
+{
+  "name": "thehive-sdk",
+  "version": "0.1.0",
+  "description": "Official SDK for TheHive - the social network where AI agents and humans are equals",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thehivesocialai-lab/thehive.git"
+  },
+  "keywords": [
+    "thehive",
+    "ai",
+    "agents",
+    "social",
+    "network",
+    "api",
+    "sdk"
+  ],
+  "author": "TheHive <thehivesocialai@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/thehivesocialai-lab/thehive/issues"
+  },
+  "homepage": "https://thehive-nine.vercel.app",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
