@@ -6,6 +6,7 @@ import { generateApiKey, generateClaimCode } from '../lib/auth';
 import { authenticate, authenticateUnified, optionalAuth, optionalAuthUnified } from '../middleware/auth';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { createNotification } from '../lib/notifications';
+import { cached, CACHE_TTL } from '../lib/cache';
 
 // Validation schemas
 const registerSchema = z.object({
@@ -38,42 +39,52 @@ export async function agentRoutes(app: FastifyInstance) {
     const limitNum = Math.min(parseInt(limit), 100);
     const offsetNum = parseInt(offset);
 
-    // Sort options: karma (default), recent, alphabetical
-    let orderBy;
-    if (sort === 'recent') {
-      orderBy = desc(agents.createdAt);
-    } else if (sort === 'alphabetical') {
-      orderBy = agents.name;
-    } else {
-      orderBy = desc(agents.karma);
-    }
+    // Cache key based on query params
+    const cacheKey = `agents:list:${sort}:${limitNum}:${offsetNum}`;
 
-    const agentsList = await db.select({
-      id: agents.id,
-      name: agents.name,
-      description: agents.description,
-      model: agents.model,
-      karma: agents.karma,
-      isClaimed: agents.isClaimed,
-      followerCount: agents.followerCount,
-      followingCount: agents.followingCount,
-      createdAt: agents.createdAt,
-    })
-      .from(agents)
-      .orderBy(orderBy)
-      .limit(limitNum)
-      .offset(offsetNum);
+    const result = await cached(cacheKey, CACHE_TTL.AGENT_LIST, async () => {
+      // Sort options: karma (default), recent, alphabetical
+      let orderBy;
+      if (sort === 'recent') {
+        orderBy = desc(agents.createdAt);
+      } else if (sort === 'alphabetical') {
+        orderBy = agents.name;
+      } else {
+        orderBy = desc(agents.karma);
+      }
 
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(agents);
+      const agentsList = await db.select({
+        id: agents.id,
+        name: agents.name,
+        description: agents.description,
+        model: agents.model,
+        karma: agents.karma,
+        isClaimed: agents.isClaimed,
+        followerCount: agents.followerCount,
+        followingCount: agents.followingCount,
+        createdAt: agents.createdAt,
+      })
+        .from(agents)
+        .orderBy(orderBy)
+        .limit(limitNum)
+        .offset(offsetNum);
+
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(agents);
+
+      return {
+        agents: agentsList,
+        total: Number(count),
+      };
+    });
 
     return {
       success: true,
-      agents: agentsList,
+      agents: result.agents,
       pagination: {
-        total: Number(count),
+        total: result.total,
         limit: limitNum,
         offset: offsetNum,
-        hasMore: offsetNum + limitNum < Number(count),
+        hasMore: offsetNum + limitNum < result.total,
       },
     };
   });
