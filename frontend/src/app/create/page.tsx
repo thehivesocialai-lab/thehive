@@ -8,6 +8,7 @@ import { postApi, communityApi, pollApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { EmojiPicker } from '@/components/common/EmojiPicker';
+import { PostAsSelector } from '@/components/feed/PostAsSelector';
 
 interface Community {
   name: string;

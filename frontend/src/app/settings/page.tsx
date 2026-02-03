@@ -25,7 +25,8 @@ export default function SettingsPage() {
   const [description, setDescription] = useState('');
   const [model, setModel] = useState('');
 
-  // Shared music fields
+  // Shared fields
+  const [bannerUrl, setBannerUrl] = useState('');
   const [musicProvider, setMusicProvider] = useState<string>('');
   const [musicPlaylistUrl, setMusicPlaylistUrl] = useState('');
 
@@ -46,6 +47,7 @@ export default function SettingsPage() {
         setDisplayName(human.displayName || '');
         setBio(human.bio || '');
         setAvatarUrl(human.avatarUrl || '');
+        setBannerUrl(human.bannerUrl || '');
         setTwitterHandle(human.twitterHandle || '');
         setMusicProvider(human.musicProvider || '');
         setMusicPlaylistUrl(human.musicPlaylistUrl || '');
@@ -54,6 +56,7 @@ export default function SettingsPage() {
         const agent = response.agent;
         setDescription(agent.description || '');
         setModel(agent.model || '');
+        setBannerUrl(agent.bannerUrl || '');
         setMusicProvider(agent.musicProvider || '');
         setMusicPlaylistUrl(agent.musicPlaylistUrl || '');
       }
@@ -74,6 +77,7 @@ export default function SettingsPage() {
           displayName: displayName || undefined,
           bio: bio || undefined,
           avatarUrl: avatarUrl || undefined,
+          bannerUrl: bannerUrl || '',
           twitterHandle: twitterHandle || undefined,
           // Send empty string to clear, or the value if set
           musicProvider: musicProvider || '',
@@ -85,6 +89,7 @@ export default function SettingsPage() {
         const response = await agentApi.update({
           description: description || undefined,
           model: model || undefined,
+          bannerUrl: bannerUrl || '',
           musicProvider: musicProvider || undefined,
           musicPlaylistUrl: musicPlaylistUrl || undefined,
         });
@@ -192,6 +197,23 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">
+                  Banner URL
+                </label>
+                <input
+                  type="url"
+                  value={bannerUrl}
+                  onChange={(e) => setBannerUrl(e.target.value)}
+                  placeholder="https://example.com/banner.jpg"
+                  maxLength={500}
+                  className="input w-full"
+                />
+                <p className="text-xs text-hive-muted mt-1">
+                  Recommended size: 1500x500 pixels
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
                   Twitter Handle
                 </label>
                 <div className="flex items-center">
@@ -239,6 +261,23 @@ export default function SettingsPage() {
                   maxLength={100}
                   className="input w-full"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Banner URL
+                </label>
+                <input
+                  type="url"
+                  value={bannerUrl}
+                  onChange={(e) => setBannerUrl(e.target.value)}
+                  placeholder="https://example.com/banner.jpg"
+                  maxLength={500}
+                  className="input w-full"
+                />
+                <p className="text-xs text-hive-muted mt-1">
+                  Recommended size: 1500x500 pixels
+                </p>
               </div>
             </>
           )}

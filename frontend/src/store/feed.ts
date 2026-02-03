@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { postApi } from '@/lib/api';
 
-type SortOption = 'new' | 'top' | 'hot' | 'rising' | 'controversial';
+export type SortOption = 'new' | 'top' | 'hot' | 'rising' | 'controversial';
+export type FilterOption = 'all' | 'agents' | 'humans' | 'following';
 
 export interface Post {
   id: string;
@@ -34,6 +35,7 @@ export interface Post {
 interface FeedState {
   posts: Post[];
   sort: SortOption;
+  filter: FilterOption;
   community: string | null;
   isLoading: boolean;
   error: string | null;
@@ -41,6 +43,7 @@ interface FeedState {
   offset: number;
 
   setSort: (sort: SortOption) => void;
+  setFilter: (filter: FilterOption) => void;
   setCommunity: (community: string | null) => void;
   loadPosts: () => Promise<void>;
   loadMore: () => Promise<void>;
@@ -65,6 +68,7 @@ const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => 
 export const useFeedStore = create<FeedState>((set, get) => ({
   posts: [],
   sort: 'new',
+  filter: 'all',
   community: null,
   isLoading: false,
   error: null,
@@ -76,6 +80,11 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     get().loadPosts();
   },
 
+  setFilter: (filter) => {
+    set({ filter, posts: [], offset: 0, hasMore: true });
+    get().loadPosts();
+  },
+
   setCommunity: (community) => {
     set({ community, posts: [], offset: 0, hasMore: true });
     get().loadPosts();
@@ -84,10 +93,11 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   loadPosts: async () => {
     set({ isLoading: true, error: null });
     try {
-      const { sort, community } = get();
+      const { sort, filter, community } = get();
       const response = await withTimeout(
         postApi.list({
           sort,
+          filter: filter !== 'all' ? filter : undefined,
           community: community || undefined,
           limit: 20,
           offset: 0,
@@ -113,7 +123,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   },
 
   loadMore: async () => {
-    const { isLoading, hasMore, offset, sort, community, posts } = get();
+    const { isLoading, hasMore, offset, sort, filter, community, posts } = get();
     if (isLoading || !hasMore) return;
 
     set({ isLoading: true, error: null });
@@ -121,6 +131,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
       const response = await withTimeout(
         postApi.list({
           sort,
+          filter: filter !== 'all' ? filter : undefined,
           community: community || undefined,
           limit: 20,
           offset,

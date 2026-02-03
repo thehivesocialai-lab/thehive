@@ -7,6 +7,7 @@ import { authenticate, authenticateUnified, optionalAuth, optionalAuthUnified } 
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { createNotification } from '../lib/notifications';
 import { cached, CACHE_TTL } from '../lib/cache';
+import { checkBadgesForAction } from '../lib/badges';
 
 // Validation schemas
 const registerSchema = z.object({
@@ -23,6 +24,9 @@ const updateSchema = z.object({
   model: z.string().max(100).optional(),
   musicProvider: z.enum(['spotify', 'apple', 'soundcloud']).optional().nullable(),
   musicPlaylistUrl: z.string().url().max(500).optional().nullable(),
+  bannerUrl: z.string().url().max(500).optional().nullable(),
+  pinnedPostId: z.string().uuid().optional().nullable(),
+  pinnedPosts: z.array(z.string().uuid()).max(3, 'Maximum 3 pinned posts allowed').optional(),
 });
 
 export async function agentRoutes(app: FastifyInstance) {
@@ -223,6 +227,9 @@ export async function agentRoutes(app: FastifyInstance) {
     if (parsed.data.model !== undefined) updates.model = parsed.data.model;
     if (parsed.data.musicProvider !== undefined) updates.musicProvider = parsed.data.musicProvider;
     if (parsed.data.musicPlaylistUrl !== undefined) updates.musicPlaylistUrl = parsed.data.musicPlaylistUrl;
+    if (parsed.data.bannerUrl !== undefined) updates.bannerUrl = parsed.data.bannerUrl;
+    if (parsed.data.pinnedPostId !== undefined) updates.pinnedPostId = parsed.data.pinnedPostId;
+    if (parsed.data.pinnedPosts !== undefined) updates.pinnedPosts = parsed.data.pinnedPosts as any;
 
     if (Object.keys(updates).length === 0) {
       throw new ValidationError('No fields to update');
@@ -252,6 +259,7 @@ export async function agentRoutes(app: FastifyInstance) {
    * GET /api/agents/:name
    * Get public profile by name (with optional follow status if authenticated)
    * NEW: Supports checking follow status for both agents and humans
+   * ENHANCED: Returns detailed stats (post count, comment count, karma breakdown)
    */
   app.get<{ Params: { name: string } }>('/:name', { preHandler: optionalAuthUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const { name } = request.params;
@@ -263,7 +271,7 @@ export async function agentRoutes(app: FastifyInstance) {
       throw new NotFoundError('Agent');
     }
 
-    const { follows } = await import('../db/schema.js');
+    const { follows, posts, comments, votes } = await import('../db/schema.js');
 
     // Check if current user follows this agent (if authenticated)
     let isFollowing = false;
@@ -289,6 +297,46 @@ export async function agentRoutes(app: FastifyInstance) {
       isFollowing = !!follow;
     }
 
+    // Get stats - total posts count
+    const [postStats] = await db.select({ count: sql<number>`count(*)` })
+      .from(posts)
+      .where(eq(posts.agentId, agent.id));
+
+    // Get stats - total comments count
+    const [commentStats] = await db.select({ count: sql<number>`count(*)` })
+      .from(comments)
+      .where(eq(comments.agentId, agent.id));
+
+    // Calculate karma from posts (sum of upvotes - downvotes)
+    const [postKarma] = await db.select({
+      karma: sql<number>`COALESCE(SUM(${posts.upvotes} - ${posts.downvotes}), 0)`
+    })
+      .from(posts)
+      .where(eq(posts.agentId, agent.id));
+
+    // Calculate karma from comments (sum of upvotes - downvotes)
+    const [commentKarma] = await db.select({
+      karma: sql<number>`COALESCE(SUM(${comments.upvotes} - ${comments.downvotes}), 0)`
+    })
+      .from(comments)
+      .where(eq(comments.agentId, agent.id));
+
+    // Get pinned posts if exist (prioritize array over legacy single)
+    let pinnedPosts: any[] = [];
+    const pinnedIds = agent.pinnedPosts && agent.pinnedPosts.length > 0
+      ? agent.pinnedPosts
+      : (agent.pinnedPostId ? [agent.pinnedPostId] : []);
+
+    if (pinnedIds.length > 0) {
+      pinnedPosts = await db.select()
+        .from(posts)
+        .where(sql`${posts.id} = ANY(${pinnedIds}::uuid[])`)
+        .limit(3);
+    }
+
+    // Calculate days since joined
+    const daysSinceJoined = Math.floor((Date.now() - new Date(agent.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+
     return {
       success: true,
       agent: {
@@ -302,8 +350,19 @@ export async function agentRoutes(app: FastifyInstance) {
         followingCount: agent.followingCount,
         musicProvider: agent.musicProvider,
         musicPlaylistUrl: agent.musicPlaylistUrl,
+        bannerUrl: agent.bannerUrl,
+        pinnedPostId: agent.pinnedPostId,
+        pinnedPosts: agent.pinnedPosts || [],
         createdAt: agent.createdAt,
       },
+      stats: {
+        totalPosts: Number(postStats.count),
+        totalComments: Number(commentStats.count),
+        karmaFromPosts: Number(postKarma.karma),
+        karmaFromComments: Number(commentKarma.karma),
+        daysSinceJoined,
+      },
+      pinnedPosts,
       isFollowing,
     };
   });
@@ -385,6 +444,15 @@ export async function agentRoutes(app: FastifyInstance) {
       const actor = followerAgent ? { agentId: followerAgent.id } : { humanId: followerHuman!.id };
       await createNotification({ agentId: targetAgent.id }, 'follow', actor);
     });
+
+    // Check for badge achievements (async, don't block response)
+    // Check badges for both the follower and the followed user
+    checkBadgesForAction('follow', followerAgent?.id, followerHuman?.id).catch(err =>
+      console.error('Error checking badges for follower:', err)
+    );
+    checkBadgesForAction('follow', targetAgent.id, undefined).catch(err =>
+      console.error('Error checking badges for followed:', err)
+    );
 
     return {
       success: true,

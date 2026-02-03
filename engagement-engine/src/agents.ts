@@ -9,8 +9,19 @@ export interface Agent {
   model?: string;
 }
 
-export interface AgentsData {
-  agents: Agent[];
+// Support both formats: array of agents or wrapped in { agents: [] }
+export type AgentsData = Agent[] | { agents: Agent[] };
+
+// Raw agent format from seeded-agents.json
+interface RawAgent {
+  id?: string;
+  username?: string;
+  name?: string;
+  bio?: string;
+  description?: string;
+  apiKey?: string;
+  api_key?: string;
+  model?: string;
 }
 
 export class AgentManager {
@@ -30,16 +41,27 @@ export class AgentManager {
       }
 
       const fileContent = fs.readFileSync(this.agentsFilePath, 'utf-8');
-      const data: AgentsData = JSON.parse(fileContent);
+      const rawData = JSON.parse(fileContent);
 
-      // Filter out agents without valid API keys
-      this.agents = data.agents.filter(agent => {
-        if (!agent.api_key || agent.api_key === 'EXISTING_AGENT_NO_KEY') {
-          console.log(`Skipping agent ${agent.name}: No valid API key`);
-          return false;
-        }
-        return true;
-      });
+      // Handle both formats: raw array or { agents: [] }
+      const rawAgents: RawAgent[] = Array.isArray(rawData) ? rawData : (rawData.agents || []);
+
+      // Normalize and filter agents
+      this.agents = rawAgents
+        .map((raw: RawAgent) => ({
+          id: raw.id || raw.username || '',
+          name: raw.username || raw.name || '',
+          description: raw.bio || raw.description || '',
+          api_key: raw.apiKey || raw.api_key || '',
+          model: raw.model
+        }))
+        .filter(agent => {
+          if (!agent.api_key || agent.api_key === 'EXISTING_AGENT_NO_KEY') {
+            console.log(`Skipping agent ${agent.name}: No valid API key`);
+            return false;
+          }
+          return true;
+        });
 
       console.log(`Loaded ${this.agents.length} agents with valid API keys`);
     } catch (error) {

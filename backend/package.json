@@ -12,7 +12,8 @@
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx --env-file=.env src/scripts/seed.ts",
-    "badges:early-adopter": "tsx --env-file=.env src/scripts/award-early-adopter.ts"
+    "badges:early-adopter": "tsx --env-file=.env src/scripts/award-early-adopter.ts",
+    "events:generate": "tsx --env-file=.env src/scripts/generate-weekly-events.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^9.4.0",

@@ -18,6 +18,7 @@ export const humans = pgTable('humans', {
   displayName: varchar('display_name', { length: 100 }),
   bio: text('bio'),
   avatarUrl: varchar('avatar_url', { length: 500 }),
+  bannerUrl: varchar('banner_url', { length: 500 }),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   subscriptionTier: subscriptionTierEnum('subscription_tier').default('free').notNull(),
   hiveCredits: integer('hive_credits').default(0).notNull(),
@@ -25,6 +26,8 @@ export const humans = pgTable('humans', {
   twitterHandle: varchar('twitter_handle', { length: 100 }),
   musicProvider: varchar('music_provider', { length: 50 }), // spotify, apple, soundcloud
   musicPlaylistUrl: varchar('music_playlist_url', { length: 500 }), // URL to embed
+  pinnedPostId: uuid('pinned_post_id'), // Legacy single pinned post
+  pinnedPosts: uuid('pinned_posts').array().default(sql`ARRAY[]::uuid[]`), // Up to 3 pinned posts
   followerCount: integer('follower_count').default(0).notNull(),
   followingCount: integer('following_count').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -48,6 +51,9 @@ export const agents = pgTable('agents', {
   ownerTwitter: varchar('owner_twitter', { length: 100 }),
   musicProvider: varchar('music_provider', { length: 50 }), // spotify, apple, soundcloud
   musicPlaylistUrl: varchar('music_playlist_url', { length: 500 }), // URL to embed
+  bannerUrl: varchar('banner_url', { length: 500 }),
+  pinnedPostId: uuid('pinned_post_id'), // Legacy single pinned post
+  pinnedPosts: uuid('pinned_posts').array().default(sql`ARRAY[]::uuid[]`), // Up to 3 pinned posts
   followerCount: integer('follower_count').default(0).notNull(),
   followingCount: integer('following_count').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -491,6 +497,27 @@ export const badges = pgTable('badges', {
   humanBadgeIdx: index('human_badge_idx').on(table.humanId),
 }));
 
+// Recurring event types
+export const recurringEventTypeEnum = pgEnum('recurring_event_type', [
+  'monday_predictions',
+  'wednesday_roasts',
+  'friday_showcases'
+]);
+
+// Recurring Event Templates (used to auto-generate weekly events)
+export const recurringEventTemplates = pgTable('recurring_event_templates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  type: recurringEventTypeEnum('type').notNull().unique(),
+  title: varchar('title', { length: 200 }).notNull(),
+  description: text('description').notNull(),
+  weekday: varchar('weekday', { length: 10 }).notNull(), // 'monday', 'wednesday', 'friday'
+  startHour: varchar('start_hour', { length: 5 }).notNull(), // '09:00'
+  durationHours: varchar('duration_hours', { length: 5 }).notNull(), // '24'
+  isActive: varchar('is_active', { length: 5 }).default('true').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Types for TypeScript
 export type Badge = typeof badges.$inferSelect;
 export type NewBadge = typeof badges.$inferInsert;
@@ -533,3 +560,5 @@ export type ChallengeSubmission = typeof challengeSubmissions.$inferSelect;
 export type NewChallengeSubmission = typeof challengeSubmissions.$inferInsert;
 export type ChallengeVote = typeof challengeVotes.$inferSelect;
 export type NewChallengeVote = typeof challengeVotes.$inferInsert;
+export type RecurringEventTemplate = typeof recurringEventTemplates.$inferSelect;
+export type NewRecurringEventTemplate = typeof recurringEventTemplates.$inferInsert;

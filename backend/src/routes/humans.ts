@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { db, humans, Human, transactions, agents, follows } from '../db';
@@ -45,6 +45,9 @@ const updateSchema = z.object({
   twitterHandle: z.string().max(100).optional(),
   musicProvider: z.enum(['spotify', 'apple', 'soundcloud']).optional().nullable().or(z.literal('')).transform(v => v || null),
   musicPlaylistUrl: z.string().url().max(500).optional().nullable().or(z.literal('')).transform(v => v || null),
+  bannerUrl: z.string().url().max(500).optional().nullable().or(z.literal('')).transform(v => v || null),
+  pinnedPostId: z.string().uuid().optional().nullable().or(z.literal('')).transform(v => v || null),
+  pinnedPosts: z.array(z.string().uuid()).max(3, 'Maximum 3 pinned posts allowed').optional(),
 });
 
 /**
@@ -277,6 +280,7 @@ export async function humanRoutes(app: FastifyInstance) {
   /**
    * GET /api/humans/profile/:username
    * Get public profile of a human user
+   * ENHANCED: Returns detailed stats (post count, comment count, etc.)
    */
   app.get<{ Params: { username: string } }>('/profile/:username', async (request) => {
     const { username } = request.params;
@@ -290,6 +294,34 @@ export async function humanRoutes(app: FastifyInstance) {
       return { success: false, error: 'Human not found' };
     }
 
+    const { posts, comments } = await import('../db/schema.js');
+
+    // Get stats - total posts count
+    const [postStats] = await db.select({ count: sql<number>`count(*)` })
+      .from(posts)
+      .where(eq(posts.humanId, human.id));
+
+    // Get stats - total comments count
+    const [commentStats] = await db.select({ count: sql<number>`count(*)` })
+      .from(comments)
+      .where(eq(comments.humanId, human.id));
+
+    // Get pinned posts if exist (prioritize array over legacy single)
+    let pinnedPosts: any[] = [];
+    const pinnedIds = human.pinnedPosts && human.pinnedPosts.length > 0
+      ? human.pinnedPosts
+      : (human.pinnedPostId ? [human.pinnedPostId] : []);
+
+    if (pinnedIds.length > 0) {
+      pinnedPosts = await db.select()
+        .from(posts)
+        .where(sql`${posts.id} = ANY(${pinnedIds}::uuid[])`)
+        .limit(3);
+    }
+
+    // Calculate days since joined
+    const daysSinceJoined = Math.floor((Date.now() - new Date(human.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+
     return {
       success: true,
       human: {
@@ -298,6 +330,9 @@ export async function humanRoutes(app: FastifyInstance) {
         displayName: human.displayName,
         bio: human.bio,
         avatarUrl: human.avatarUrl,
+        bannerUrl: human.bannerUrl,
+        pinnedPostId: human.pinnedPostId,
+        pinnedPosts: human.pinnedPosts || [],
         isVerified: human.isVerified,
         hiveCredits: human.hiveCredits,
         subscriptionTier: human.subscriptionTier,
@@ -307,6 +342,12 @@ export async function humanRoutes(app: FastifyInstance) {
         followingCount: human.followingCount,
         createdAt: human.createdAt,
       },
+      stats: {
+        totalPosts: Number(postStats.count),
+        totalComments: Number(commentStats.count),
+        daysSinceJoined,
+      },
+      pinnedPosts,
     };
   });
 
@@ -400,6 +441,9 @@ export async function humanRoutes(app: FastifyInstance) {
     if (parsed.data.twitterHandle !== undefined) updates.twitterHandle = parsed.data.twitterHandle;
     if (parsed.data.musicProvider !== undefined) updates.musicProvider = parsed.data.musicProvider;
     if (parsed.data.musicPlaylistUrl !== undefined) updates.musicPlaylistUrl = parsed.data.musicPlaylistUrl;
+    if (parsed.data.bannerUrl !== undefined) updates.bannerUrl = parsed.data.bannerUrl;
+    if (parsed.data.pinnedPostId !== undefined) updates.pinnedPostId = parsed.data.pinnedPostId;
+    if (parsed.data.pinnedPosts !== undefined) updates.pinnedPosts = parsed.data.pinnedPosts as any;
 
     if (Object.keys(updates).length === 0) {
       throw new ValidationError('No fields to update');

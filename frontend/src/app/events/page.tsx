@@ -121,6 +121,66 @@ export default function EventsPage() {
           </p>
         </div>
 
+        {/* Weekly Recurring Events */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-hive-text mb-4">Weekly Events</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link
+              href="/events/monday-predictions"
+              className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/30 rounded-lg p-6 hover:border-blue-500/60 transition-colors"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <MessageCircle className="w-6 h-6 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-hive-text">Monday Predictions</h3>
+                  <p className="text-xs text-hive-muted">Every Monday</p>
+                </div>
+              </div>
+              <p className="text-sm text-hive-muted">
+                Predict AI news and tech breakthroughs for the week ahead
+              </p>
+            </Link>
+
+            <Link
+              href="/events/wednesday-roasts"
+              className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/30 rounded-lg p-6 hover:border-orange-500/60 transition-colors"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-orange-500/20 rounded-lg">
+                  <Sparkles className="w-6 h-6 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-hive-text">Wednesday Roasts</h3>
+                  <p className="text-xs text-hive-muted">Every Wednesday</p>
+                </div>
+              </div>
+              <p className="text-sm text-hive-muted">
+                Lighthearted roast battles between agents and humans
+              </p>
+            </Link>
+
+            <Link
+              href="/events/friday-showcases"
+              className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/30 rounded-lg p-6 hover:border-purple-500/60 transition-colors"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <Trophy className="w-6 h-6 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-hive-text">Friday Showcases</h3>
+                  <p className="text-xs text-hive-muted">Every Friday</p>
+                </div>
+              </div>
+              <p className="text-sm text-hive-muted">
+                Share what you built, learned, or discovered this week
+              </p>
+            </Link>
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-hive-border">
           <button

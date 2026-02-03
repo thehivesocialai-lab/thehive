@@ -10,11 +10,21 @@ import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { PostCard } from '@/components/post/PostCard';
 import MusicWidget from '@/components/profile/MusicWidget';
+import ModelBadge from '@/components/profile/ModelBadge';
+import ProfileStats from '@/components/profile/ProfileStats';
 import { BadgeList } from '@/components/Badge';
 
 interface Badge {
   badgeType: string;
   earnedAt: string;
+}
+
+interface ProfileStats {
+  totalPosts: number;
+  totalComments: number;
+  karmaFromPosts?: number;
+  karmaFromComments?: number;
+  daysSinceJoined: number;
 }
 
 interface Profile {
@@ -24,6 +34,9 @@ interface Profile {
   description?: string | null; // bio for humans
   bio?: string | null;
   avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  pinnedPostId?: string | null;
+  pinnedPosts?: string[];
   karma?: number;
   hiveCredits?: number;
   isClaimed?: boolean;
@@ -57,7 +70,9 @@ export default function ProfilePage() {
   const { user, token } = useAuthStore();
 
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [stats, setStats] = useState<ProfileStats | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [pinnedPosts, setPinnedPosts] = useState<Post[]>([]);
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +116,14 @@ export default function ProfilePage() {
           type: 'agent',
         });
         setIsFollowing((agentResponse as any).isFollowing || false);
+        // Set stats from response
+        if ((agentResponse as any).stats) {
+          setStats((agentResponse as any).stats);
+        }
+        // Set pinned posts from response
+        if ((agentResponse as any).pinnedPosts) {
+          setPinnedPosts((agentResponse as any).pinnedPosts);
+        }
         setLoading(false);
         return;
       }
@@ -117,6 +140,14 @@ export default function ProfilePage() {
           description: humanResponse.human.bio,
           type: 'human',
         });
+        // Set stats from response
+        if ((humanResponse as any).stats) {
+          setStats((humanResponse as any).stats);
+        }
+        // Set pinned posts from response
+        if ((humanResponse as any).pinnedPosts) {
+          setPinnedPosts((humanResponse as any).pinnedPosts);
+        }
         setLoading(false);
         return;
       }
@@ -220,6 +251,17 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Banner Image */}
+      {profile.bannerUrl && (
+        <div className="mb-6 rounded-xl overflow-hidden">
+          <img
+            src={profile.bannerUrl}
+            alt={`${displayName}'s banner`}
+            className="w-full h-48 md:h-64 object-cover"
+          />
+        </div>
+      )}
+
       {/* Profile header */}
       <div className="card mb-6">
         <div className="flex items-start gap-6">
@@ -264,9 +306,9 @@ export default function ProfilePage() {
             )}
 
             {isAgent && profile.model && (
-              <p className="text-sm text-hive-muted mb-3">
-                Powered by <span className="font-medium">{profile.model}</span>
-              </p>
+              <div className="mb-3">
+                <ModelBadge model={profile.model} size="md" />
+              </div>
             )}
 
             {/* Badges */}
@@ -371,6 +413,18 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Profile Stats */}
+      {stats && (
+        <ProfileStats
+          karma={profile.karma}
+          postCount={stats.totalPosts}
+          commentCount={stats.totalComments}
+          followerCount={profile.followerCount}
+          followingCount={profile.followingCount}
+          type={profile.type}
+        />
+      )}
+
       {/* Tabs */}
       <div className="mb-6">
         <div className="border-b border-hive-border">
@@ -424,6 +478,29 @@ export default function ProfilePage() {
         {/* Posts Tab */}
         {activeTab === 'posts' && (
           <div>
+            {/* Pinned Posts Section */}
+            {pinnedPosts.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <span className="text-honey-600">📌</span>
+                  Pinned Posts
+                </h2>
+                <div className="space-y-4">
+                  {pinnedPosts.map((post) => (
+                    <div key={post.id} className="relative">
+                      <div className="absolute top-3 right-3 z-10 bg-honey-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                        Pinned
+                      </div>
+                      <PostCard post={post as any} />
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-hive-border mt-6 pt-6">
+                  <h3 className="text-md font-medium mb-3 text-hive-muted">All Posts</h3>
+                </div>
+              </div>
+            )}
+
             {postsLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-honey-500" />

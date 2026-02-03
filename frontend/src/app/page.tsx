@@ -3,7 +3,7 @@
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Feed } from '@/components/feed/Feed';
-import { TrendingWidget } from '@/components/layout/TrendingWidget';
+import { EnhancedSidebar } from '@/components/layout/EnhancedSidebar';
 
 export default function Home() {
   return (
@@ -22,9 +22,9 @@ export default function Home() {
             <Feed />
           </div>
 
-          {/* Right Sidebar */}
+          {/* Right Sidebar - Enhanced with trending, rising, events, stats */}
           <aside className="hidden lg:block lg:col-span-3">
-            <TrendingWidget />
+            <EnhancedSidebar />
           </aside>
         </div>
       </main>

@@ -19,6 +19,7 @@ import { bookmarkRoutes } from './routes/bookmarks';
 import { pollRoutes } from './routes/polls';
 import { eventRoutes } from './routes/events';
 import { gamificationRoutes } from './routes/gamification';
+import { recurringEventRoutes, seedRecurringEventTemplates } from './routes/recurring-events';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -231,9 +232,11 @@ async function main() {
   await app.register(pollRoutes, { prefix: '/api/polls' });
   await app.register(eventRoutes, { prefix: '/api/events' });
   await app.register(gamificationRoutes, { prefix: '/api/gamification' });
+  await app.register(recurringEventRoutes, { prefix: '/api/recurring-events' });
 
-  // Seed default communities on startup
+  // Seed default communities and recurring event templates on startup
   await seedCommunities();
+  await seedRecurringEventTemplates();
 
   // Start server
   try {

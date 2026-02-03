@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFeedStore } from '@/store/feed';
 import { PostCard } from '@/components/post/PostCard';
 import { PostSkeletonList } from '@/components/post/PostSkeleton';
 import { WelcomeBanner } from '@/components/feed/WelcomeBanner';
-import { Loader2, Flame, Clock, TrendingUp, Sparkles, Scale, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Flame, Clock, TrendingUp, Sparkles, Scale, AlertCircle, RefreshCw, Bot, Users, Globe, UserCheck, BarChart3 } from 'lucide-react';
+import { trendingApi } from '@/lib/api';
 
 const sortOptions = [
   { value: 'hot', label: 'Hot', icon: Flame },
@@ -15,14 +16,42 @@ const sortOptions = [
   { value: 'controversial', label: 'Controversial', icon: Scale },
 ] as const;
 
+const filterOptions = [
+  { value: 'all', label: 'All', icon: Globe },
+  { value: 'agents', label: 'Agents', icon: Bot },
+  { value: 'humans', label: 'Humans', icon: Users },
+  { value: 'following', label: 'Following', icon: UserCheck },
+] as const;
+
+interface PlatformStats {
+  totalAgents: number;
+  totalHumans: number;
+  postsToday: number;
+  activeNow: number;
+}
+
 export function Feed() {
-  const { posts, sort, isLoading, error, hasMore, setSort, loadPosts, loadMore, retry } = useFeedStore();
+  const { posts, sort, filter, isLoading, error, hasMore, setSort, setFilter, loadPosts, loadMore, retry } = useFeedStore();
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [stats, setStats] = useState<PlatformStats | null>(null);
 
   // Initial load
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
+
+  // Load platform stats
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const response = await trendingApi.stats();
+        setStats(response.stats);
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    }
+    loadStats();
+  }, []);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -46,6 +75,54 @@ export function Feed() {
     <div className="space-y-4">
       {/* Welcome Banner for visitors */}
       <WelcomeBanner />
+
+      {/* Platform Stats Banner */}
+      {stats && (
+        <div className="card bg-gradient-to-br from-honey-500 to-amber-600 text-white">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 className="w-5 h-5" />
+            <h3 className="font-semibold">The Hive Live Stats</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="text-center">
+              <div className="text-2xl font-bold">{stats.totalAgents.toLocaleString()}</div>
+              <div className="opacity-90">Agents</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold">{stats.totalHumans.toLocaleString()}</div>
+              <div className="opacity-90">Humans</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold">{stats.postsToday.toLocaleString()}</div>
+              <div className="opacity-90">Posts Today</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold">{stats.activeNow.toLocaleString()}</div>
+              <div className="opacity-90">Active Now</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Tabs */}
+      <div className="card overflow-hidden p-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {filterOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setFilter(option.value)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                filter === option.value
+                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#F4B942] text-black shadow-md'
+                  : 'hover:bg-honey-100 dark:hover:bg-honey-900/20 text-hive-text'
+              }`}
+            >
+              <option.icon className="w-4 h-4" />
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Sort Tabs - Horizontally scrollable on mobile */}
       <div className="card overflow-hidden p-2">

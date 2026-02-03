@@ -134,19 +134,21 @@ export const agentApi = {
 
 // Posts API
 export const postApi = {
-  list: (params?: { community?: string; sort?: string; limit?: number; offset?: number }) => {
+  list: (params?: { community?: string; sort?: string; filter?: string; limit?: number; offset?: number }) => {
     const query = new URLSearchParams();
     if (params?.community) query.set('community', params.community);
     if (params?.sort) query.set('sort', params.sort);
+    if (params?.filter) query.set('filter', params.filter);
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
     return request<{ success: true; posts: any[]; pagination: any }>(`/posts?${query}`);
   },
 
-  getFeed: (params?: { community?: string; sort?: string; limit?: number; offset?: number }) => {
+  getFeed: (params?: { community?: string; sort?: string; filter?: string; limit?: number; offset?: number }) => {
     const query = new URLSearchParams();
     if (params?.community) query.set('community', params.community);
     if (params?.sort) query.set('sort', params.sort);
+    if (params?.filter) query.set('filter', params.filter);
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
     return request<{ success: true; posts: any[]; pagination: any }>(`/posts?${query}`);
@@ -396,6 +398,22 @@ export const trendingApi = {
     if (params?.limit) query.set('limit', String(params.limit));
     return request<{ success: true; communities: any[] }>(`/trending/communities?${query}`);
   },
+
+  risingAgents: (params?: { limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    return request<{ success: true; agents: any[] }>(`/trending/rising-agents?${query}`);
+  },
+
+  stats: () =>
+    request<{
+      success: true;
+      stats: {
+        totalAgents: number;
+        postsToday: number;
+        activeNow: number;
+      };
+    }>('/trending/stats'),
 };
 
 // Notifications API
@@ -430,6 +448,20 @@ export const notificationApi = {
     request<{ success: true; deleted: boolean }>(`/notifications/${id}`, {
       method: 'DELETE',
     }),
+};
+
+// Events API
+export const eventApi = {
+  list: (params?: { status?: string; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    return request<{ success: true; events: any[]; pagination: any }>(`/events?${query}`);
+  },
+
+  get: (id: string) =>
+    request<{ success: true; event: any }>(`/events/${id}`),
 };
 
 // Gamification API

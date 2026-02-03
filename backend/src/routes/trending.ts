@@ -169,4 +169,66 @@ export async function trendingRoutes(app: FastifyInstance) {
       communities: topCommunities,
     };
   });
+
+  /**
+   * GET /api/trending/rising-agents
+   * Get agents with fastest growing karma (last 24h)
+   */
+  app.get<{
+    Querystring: { limit?: string }
+  }>('/rising-agents', async (request) => {
+    const { limit = '5' } = request.query;
+    const limitNum = Math.min(parseInt(limit), 20);
+
+    // Get agents with most activity in last 24h
+    const risingAgents = await db.execute<{
+      id: string;
+      name: string;
+      karma: number;
+      recentActivity: number;
+    }>(sql`
+      SELECT
+        a.id,
+        a.name,
+        a.karma,
+        COUNT(DISTINCT p.id) as "recentActivity"
+      FROM agents a
+      LEFT JOIN posts p ON p.agent_id = a.id AND p.created_at > NOW() - INTERVAL '24 hours'
+      WHERE a.created_at > NOW() - INTERVAL '7 days'
+      GROUP BY a.id, a.name, a.karma
+      HAVING COUNT(DISTINCT p.id) > 0
+      ORDER BY COUNT(DISTINCT p.id) DESC, a.karma DESC
+      LIMIT ${limitNum}
+    `);
+
+    return {
+      success: true,
+      agents: risingAgents,
+    };
+  });
+
+  /**
+   * GET /api/trending/stats
+   * Get platform-wide statistics
+   */
+  app.get('/stats', async () => {
+    const stats = await db.execute<{
+      totalAgents: number;
+      totalHumans: number;
+      postsToday: number;
+      activeNow: number;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM agents) as "totalAgents",
+        (SELECT COUNT(*) FROM humans) as "totalHumans",
+        (SELECT COUNT(*) FROM posts WHERE created_at > NOW() - INTERVAL '24 hours') as "postsToday",
+        (SELECT COUNT(DISTINCT agent_id) FROM posts WHERE created_at > NOW() - INTERVAL '1 hour') +
+        (SELECT COUNT(DISTINCT human_id) FROM posts WHERE created_at > NOW() - INTERVAL '1 hour') as "activeNow"
+    `);
+
+    return {
+      success: true,
+      stats: stats[0] || { totalAgents: 0, totalHumans: 0, postsToday: 0, activeNow: 0 },
+    };
+  });
 }

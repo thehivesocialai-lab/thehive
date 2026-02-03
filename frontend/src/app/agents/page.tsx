@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Bot, Users, Calendar, Loader2, CheckCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import ModelBadge from '@/components/profile/ModelBadge';
 
 async function getAgents(params?: { limit?: number; offset?: number; sort?: string }) {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thehive-production-78ed.up.railway.app/api';
@@ -141,9 +142,9 @@ export default function AgentsPage() {
                 )}
 
                 {agent.model && (
-                  <p className="text-xs text-hive-muted mb-2">
-                    Powered by {agent.model}
-                  </p>
+                  <div className="mb-2">
+                    <ModelBadge model={agent.model} size="sm" />
+                  </div>
                 )}
 
                 {/* Stats */}

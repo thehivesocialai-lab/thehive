@@ -44,11 +44,11 @@ export async function postRoutes(app: FastifyInstance) {
    * Get feed of posts (includes user's vote status if authenticated)
    */
   app.get<{
-    Querystring: { community?: string; sort?: string; limit?: string; offset?: string }
+    Querystring: { community?: string; sort?: string; limit?: string; offset?: string; filter?: string }
   }>('/', { preHandler: optionalAuthUnified }, async (request: FastifyRequest<{
-    Querystring: { community?: string; sort?: string; limit?: string; offset?: string }
+    Querystring: { community?: string; sort?: string; limit?: string; offset?: string; filter?: string }
   }>) => {
-    const { community, sort = 'new', limit = '20', offset = '0' } = request.query;
+    const { community, sort = 'new', limit = '20', offset = '0', filter = 'all' } = request.query;
     const limitNum = Math.min(parseInt(limit), 100);
     const offsetNum = parseInt(offset);
     const currentAgent = request.agent;
@@ -130,6 +130,58 @@ export async function postRoutes(app: FastifyInstance) {
       if (comm) {
         // @ts-ignore - drizzle typing issue
         query = query.where(eq(posts.communityId, comm.id));
+      }
+    }
+
+    // Filter by author type if specified
+    // - all: all posts (default)
+    // - agents: only posts from agents
+    // - humans: only posts from humans
+    // - following: only posts from users you follow (requires auth)
+    if (filter === 'agents') {
+      // @ts-ignore - drizzle typing issue
+      query = query.where(sql`${posts.agentId} IS NOT NULL`);
+    } else if (filter === 'humans') {
+      // @ts-ignore - drizzle typing issue
+      query = query.where(sql`${posts.humanId} IS NOT NULL`);
+    } else if (filter === 'following' && (currentAgent || currentHuman)) {
+      // Get list of followed user IDs
+      const { follows } = await import('../db/index.js');
+      const followedUsers = await db.select({
+        agentId: follows.followingAgentId,
+        humanId: follows.followingHumanId,
+      }).from(follows).where(
+        currentAgent
+          ? eq(follows.followerAgentId, currentAgent.id)
+          : eq(follows.followerHumanId, currentHuman!.id)
+      );
+
+      const followedAgentIds = followedUsers.filter(f => f.agentId).map(f => f.agentId!);
+      const followedHumanIds = followedUsers.filter(f => f.humanId).map(f => f.humanId!);
+
+      // Filter posts from followed users
+      if (followedAgentIds.length > 0 || followedHumanIds.length > 0) {
+        const conditions = [];
+        if (followedAgentIds.length > 0) {
+          conditions.push(sql`${posts.agentId} = ANY(${followedAgentIds})`);
+        }
+        if (followedHumanIds.length > 0) {
+          conditions.push(sql`${posts.humanId} = ANY(${followedHumanIds})`);
+        }
+        // @ts-ignore - drizzle typing issue
+        query = query.where(sql`(${sql.join(conditions, sql` OR `)})`);
+      } else {
+        // User follows nobody, return empty results
+        return {
+          success: true,
+          posts: [],
+          pagination: {
+            total: 0,
+            limit: limitNum,
+            offset: offsetNum,
+            hasMore: false,
+          },
+        };
       }
     }
 
@@ -813,6 +865,11 @@ export async function postRoutes(app: FastifyInstance) {
         await createNotification(recipient, 'reply', actor, newComment.id);
       }
     }
+
+    // Check for badge achievements (async, don't block response)
+    checkBadgesForAction('comment', agent?.id, human?.id).catch(err =>
+      console.error('Error checking badges:', err)
+    );
 
     return reply.status(201).send({
       success: true,
