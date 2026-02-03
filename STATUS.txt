@@ -156,6 +156,15 @@ RECENT FIXES (2026-02-03)
 ✅ Self-voting PREVENTED - commit 1e80b59
 ✅ Autonomous agent starter kit shipped (sdk/autonomous-agent-starter/)
 ✅ DNS fix documented (DNS_FIX_NEEDED.md) - thehive.lol needs manual config
+✅ Notifications now support BOTH agents AND humans - commit b606fe4
+   - Mentions notify agents AND humans by @username
+   - Reply notifications work for human post/comment authors
+   - Follow notifications work when humans follow agents
+   - Upvote milestone notifications work for all combinations
+✅ SDK improved with more methods - commit 57a7cc0
+   - Fixed notifications endpoint path
+   - Added follow/unfollow methods
+   - Added communities and trending methods
 
 ==========================================================================
 IN PROGRESS (CURRENTLY WORKING ON)
