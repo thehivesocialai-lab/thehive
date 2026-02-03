@@ -473,4 +473,317 @@ export async function teamRoutes(app: FastifyInstance) {
       project: updated,
     };
   });
+
+  /**
+   * PUT /api/teams/:id/members/:memberId/role
+   * Change a member's role (owner/admin only)
+   */
+  app.put<{
+    Params: { id: string; memberId: string };
+    Body: { role: string; memberType: string };
+  }>('/:id/members/:memberId/role', { preHandler: authenticateUnified }, async (request) => {
+    const { id, memberId: targetMemberId } = request.params;
+    const { role: newRole, memberType: targetMemberType } = request.body as { role: string; memberType: string };
+
+    // Validate UUID formats
+    if (!isValidUUID(id) || !isValidUUID(targetMemberId)) {
+      throw new ValidationError('Invalid ID format');
+    }
+
+    // Validate role
+    if (!['member', 'admin', 'owner'].includes(newRole)) {
+      throw new ValidationError('Invalid role. Must be member, admin, or owner');
+    }
+
+    // Validate memberType
+    if (!['agent', 'human'].includes(targetMemberType)) {
+      throw new ValidationError('Invalid memberType. Must be agent or human');
+    }
+
+    const actorId = request.agent?.id || request.human?.id;
+    const actorType = request.userType!;
+
+    if (!actorId) {
+      throw new ValidationError('Actor ID not found');
+    }
+
+    // Check team exists
+    const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
+    if (!team) {
+      throw new NotFoundError('Team');
+    }
+
+    // Get actor's membership
+    const [actorMember] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, actorId),
+        eq(teamMembers.memberType, actorType)
+      ))
+      .limit(1);
+
+    if (!actorMember) {
+      throw new ForbiddenError('You must be a team member');
+    }
+
+    // Only owner or admin can change roles
+    if (!['owner', 'admin'].includes(actorMember.role)) {
+      throw new ForbiddenError('Only owners and admins can change member roles');
+    }
+
+    // Get target member
+    const [targetMember] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, targetMemberId),
+        eq(teamMembers.memberType, targetMemberType)
+      ))
+      .limit(1);
+
+    if (!targetMember) {
+      throw new NotFoundError('Member');
+    }
+
+    // Admins cannot promote to owner
+    if (actorMember.role === 'admin' && newRole === 'owner') {
+      throw new ForbiddenError('Only owners can promote members to owner');
+    }
+
+    // Owners cannot demote themselves
+    if (targetMember.role === 'owner' && targetMemberId === actorId && newRole !== 'owner') {
+      throw new ForbiddenError('Owners cannot demote themselves. Transfer ownership first.');
+    }
+
+    // Update role
+    const [updated] = await db.update(teamMembers)
+      .set({ role: newRole })
+      .where(eq(teamMembers.id, targetMember.id))
+      .returning();
+
+    return {
+      success: true,
+      message: `Member role updated to ${newRole}`,
+      member: updated,
+    };
+  });
+
+  /**
+   * DELETE /api/teams/:id/members/:memberId
+   * Remove a member from team (owner/admin only)
+   */
+  app.delete<{
+    Params: { id: string; memberId: string };
+    Querystring: { memberType: string };
+  }>('/:id/members/:memberId', { preHandler: authenticateUnified }, async (request) => {
+    const { id, memberId: targetMemberId } = request.params;
+    const { memberType: targetMemberType } = request.query;
+
+    // Validate UUID formats
+    if (!isValidUUID(id) || !isValidUUID(targetMemberId)) {
+      throw new ValidationError('Invalid ID format');
+    }
+
+    // Validate memberType
+    if (!['agent', 'human'].includes(targetMemberType)) {
+      throw new ValidationError('Invalid memberType. Must be agent or human');
+    }
+
+    const actorId = request.agent?.id || request.human?.id;
+    const actorType = request.userType!;
+
+    if (!actorId) {
+      throw new ValidationError('Actor ID not found');
+    }
+
+    // Check team exists
+    const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
+    if (!team) {
+      throw new NotFoundError('Team');
+    }
+
+    // Get actor's membership
+    const [actorMember] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, actorId),
+        eq(teamMembers.memberType, actorType)
+      ))
+      .limit(1);
+
+    if (!actorMember) {
+      throw new ForbiddenError('You must be a team member');
+    }
+
+    // Only owner or admin can remove members
+    if (!['owner', 'admin'].includes(actorMember.role)) {
+      throw new ForbiddenError('Only owners and admins can remove members');
+    }
+
+    // Get target member
+    const [targetMember] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, targetMemberId),
+        eq(teamMembers.memberType, targetMemberType)
+      ))
+      .limit(1);
+
+    if (!targetMember) {
+      throw new NotFoundError('Member');
+    }
+
+    // Cannot remove the owner
+    if (targetMember.role === 'owner') {
+      throw new ForbiddenError('Cannot remove the team owner. Transfer ownership first.');
+    }
+
+    // Remove member and update count
+    await db.transaction(async (tx) => {
+      await tx.delete(teamMembers)
+        .where(eq(teamMembers.id, targetMember.id));
+
+      await tx.update(teams)
+        .set({ memberCount: Math.max(0, team.memberCount - 1) })
+        .where(eq(teams.id, id));
+    });
+
+    return {
+      success: true,
+      message: 'Member removed from team',
+    };
+  });
+
+  /**
+   * PUT /api/teams/:id/transfer
+   * Transfer ownership to another member (owner only)
+   */
+  app.put<{
+    Params: { id: string };
+    Body: { newOwnerId: string; newOwnerType: string };
+  }>('/:id/transfer', { preHandler: authenticateUnified }, async (request) => {
+    const { id } = request.params;
+    const { newOwnerId, newOwnerType } = request.body as { newOwnerId: string; newOwnerType: string };
+
+    // Validate UUID formats
+    if (!isValidUUID(id) || !isValidUUID(newOwnerId)) {
+      throw new ValidationError('Invalid ID format');
+    }
+
+    // Validate newOwnerType
+    if (!['agent', 'human'].includes(newOwnerType)) {
+      throw new ValidationError('Invalid newOwnerType. Must be agent or human');
+    }
+
+    const actorId = request.agent?.id || request.human?.id;
+    const actorType = request.userType!;
+
+    if (!actorId) {
+      throw new ValidationError('Actor ID not found');
+    }
+
+    // Check team exists
+    const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
+    if (!team) {
+      throw new NotFoundError('Team');
+    }
+
+    // Get actor's membership
+    const [actorMember] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, actorId),
+        eq(teamMembers.memberType, actorType)
+      ))
+      .limit(1);
+
+    if (!actorMember || actorMember.role !== 'owner') {
+      throw new ForbiddenError('Only the team owner can transfer ownership');
+    }
+
+    // Get new owner's membership
+    const [newOwnerMember] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, newOwnerId),
+        eq(teamMembers.memberType, newOwnerType)
+      ))
+      .limit(1);
+
+    if (!newOwnerMember) {
+      throw new NotFoundError('New owner must be a team member');
+    }
+
+    // Transfer ownership in transaction
+    await db.transaction(async (tx) => {
+      // Old owner becomes admin
+      await tx.update(teamMembers)
+        .set({ role: 'admin' })
+        .where(eq(teamMembers.id, actorMember.id));
+
+      // New member becomes owner
+      await tx.update(teamMembers)
+        .set({ role: 'owner' })
+        .where(eq(teamMembers.id, newOwnerMember.id));
+
+      // Update team creator info
+      await tx.update(teams)
+        .set({
+          creatorId: newOwnerId,
+          creatorType: newOwnerType,
+        })
+        .where(eq(teams.id, id));
+    });
+
+    return {
+      success: true,
+      message: 'Ownership transferred successfully',
+    };
+  });
+
+  /**
+   * DELETE /api/teams/:id
+   * Delete team and all projects/artifacts (owner only)
+   */
+  app.delete<{ Params: { id: string } }>('/:id', { preHandler: authenticateUnified }, async (request) => {
+    const { id } = request.params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid team ID format');
+    }
+
+    const actorId = request.agent?.id || request.human?.id;
+    const actorType = request.userType!;
+
+    if (!actorId) {
+      throw new ValidationError('Actor ID not found');
+    }
+
+    // Check team exists
+    const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
+    if (!team) {
+      throw new NotFoundError('Team');
+    }
+
+    // Get actor's membership
+    const [actorMember] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, actorId),
+        eq(teamMembers.memberType, actorType)
+      ))
+      .limit(1);
+
+    if (!actorMember || actorMember.role !== 'owner') {
+      throw new ForbiddenError('Only the team owner can delete the team');
+    }
+
+    // Delete team (cascade will handle projects, artifacts, members, etc.)
+    await db.delete(teams).where(eq(teams.id, id));
+
+    return {
+      success: true,
+      message: 'Team deleted successfully',
+    };
+  });
 }

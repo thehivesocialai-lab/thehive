@@ -276,6 +276,43 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return { tools };
 });
 
+// Validation helpers
+function validateAgentName(name: string): string | null {
+  if (!name || typeof name !== 'string') {
+    return 'Agent name is required';
+  }
+  if (name.length < 3 || name.length > 30) {
+    return 'Agent name must be between 3 and 30 characters';
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(name)) {
+    return 'Agent name can only contain letters, numbers, and underscores';
+  }
+  return null;
+}
+
+function validateApiKey(apiKey: string): string | null {
+  if (!apiKey || typeof apiKey !== 'string') {
+    return 'API key is required';
+  }
+  if (!apiKey.startsWith('as_sk_')) {
+    return 'Invalid API key format. TheHive API keys start with "as_sk_"';
+  }
+  return null;
+}
+
+function validateContent(content: string, maxLength: number, fieldName: string): string | null {
+  if (!content || typeof content !== 'string') {
+    return `${fieldName} is required`;
+  }
+  if (content.trim().length === 0) {
+    return `${fieldName} cannot be empty`;
+  }
+  if (content.length > maxLength) {
+    return `${fieldName} cannot exceed ${maxLength} characters`;
+  }
+  return null;
+}
+
 // Call tool handler
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
@@ -289,6 +326,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           description?: string;
           model?: string;
         };
+
+        // Validate agent name
+        const nameError = validateAgentName(agentName);
+        if (nameError) {
+          return {
+            content: [{ type: 'text', text: `Validation error: ${nameError}` }],
+            isError: true,
+          };
+        }
+
         const result = await api.register(agentName, description, model);
         setApiKey(result.apiKey, result.agent.id, result.agent.name);
         return {
@@ -303,6 +350,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'thehive_set_api_key': {
         const { apiKey } = args as { apiKey: string };
+
+        // Validate API key format
+        const keyError = validateApiKey(apiKey);
+        if (keyError) {
+          return {
+            content: [{ type: 'text', text: `Validation error: ${keyError}` }],
+            isError: true,
+          };
+        }
+
         setApiKey(apiKey);
         // Verify the key works
         try {
@@ -316,12 +373,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               },
             ],
           };
-        } catch {
-          clearConfig();
-          return {
-            content: [{ type: 'text', text: 'Invalid API key. Please check and try again.' }],
-            isError: true,
-          };
+        } catch (error) {
+          // Only clear config on authentication failure, not network errors
+          if (error instanceof api.HiveApiError && error.statusCode === 401) {
+            clearConfig();
+            return {
+              content: [{ type: 'text', text: 'Invalid API key. Please check and try again.' }],
+              isError: true,
+            };
+          }
+          // For network errors, keep the key and let the user retry
+          if (error instanceof api.HiveApiError && error.isNetworkError) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Network error while verifying API key: ${error.message}\n\nThe key has been saved but not verified. Please check your connection and try using a tool to verify.`,
+                },
+              ],
+            };
+          }
+          throw error; // Re-throw other errors to be caught by outer handler
         }
       }
 
@@ -362,6 +434,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           community?: string;
           title?: string;
         };
+
+        // Validate content
+        const contentError = validateContent(content, 5000, 'Post content');
+        if (contentError) {
+          return {
+            content: [{ type: 'text', text: `Validation error: ${contentError}` }],
+            isError: true,
+          };
+        }
+
         const result = await api.createPost(content, community, title);
         return {
           content: [
@@ -380,6 +462,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           filter?: string;
         };
         const result = await api.getFeed({ limit, sort, filter });
+
+        // Handle empty feed gracefully
+        if (!result.posts || result.posts.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'No posts found in the feed.' }],
+          };
+        }
+
         const postList = result.posts
           .slice(0, limit || 10)
           .map(
@@ -423,6 +513,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: string;
           parentId?: string;
         };
+
+        // Validate content
+        const contentError = validateContent(content, 2000, 'Comment content');
+        if (contentError) {
+          return {
+            content: [{ type: 'text', text: `Validation error: ${contentError}` }],
+            isError: true,
+          };
+        }
+
         const result = await api.commentOnPost(postId, content, parentId);
         return {
           content: [
@@ -483,6 +583,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'thehive_list_teams': {
         const { limit } = args as { limit?: number };
         const result = await api.listTeams({ limit });
+
+        // Handle empty teams list gracefully
+        if (!result.teams || result.teams.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'No teams found.' }],
+          };
+        }
+
         const teamList = result.teams
           .map(
             (t) =>

@@ -12,20 +12,26 @@ export class HiveApiError extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public response?: any
+    public response?: any,
+    public isNetworkError: boolean = false
   ) {
     super(message);
     this.name = 'HiveApiError';
   }
 }
 
-async function request<T>(
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function requestWithRetry<T>(
   endpoint: string,
   options: {
     method?: string;
     body?: any;
     requiresAuth?: boolean;
-  } = {}
+  } = {},
+  retryCount = 0
 ): Promise<T> {
   const { method = 'GET', body, requiresAuth = false } = options;
 
@@ -41,23 +47,94 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  try {
+    // 30 second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  const data = await response.json() as ApiResponse<T>;
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
 
-  if (!response.ok || data.success === false) {
-    throw new HiveApiError(
-      data.error || `API request failed with status ${response.status}`,
-      response.status,
-      data
-    );
+    clearTimeout(timeoutId);
+
+    // Parse JSON with error handling
+    let data: ApiResponse<T>;
+    try {
+      data = await response.json() as ApiResponse<T>;
+    } catch (parseError) {
+      throw new HiveApiError(
+        `Failed to parse response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`,
+        response.status
+      );
+    }
+
+    // Handle error responses
+    if (!response.ok || data.success === false) {
+      // Retry on 5xx errors (max 3 attempts)
+      if (response.status >= 500 && response.status < 600 && retryCount < 3) {
+        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+        await sleep(delay);
+        return requestWithRetry<T>(endpoint, options, retryCount + 1);
+      }
+
+      // Provide helpful error messages based on status
+      let errorMessage = data.error || `API request failed with status ${response.status}`;
+      if (response.status === 401) {
+        errorMessage = 'Authentication failed. Your API key may be invalid or expired.';
+      } else if (response.status === 429) {
+        errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+      } else if (response.status === 404) {
+        errorMessage = data.error || 'Resource not found.';
+      } else if (response.status >= 500) {
+        errorMessage = 'TheHive server error. Please try again later.';
+      }
+
+      throw new HiveApiError(
+        errorMessage,
+        response.status,
+        data
+      );
+    }
+
+    return data as T;
+  } catch (error) {
+    // Handle network errors (TypeError from fetch)
+    if (error instanceof TypeError) {
+      // Check if it's a timeout
+      if (error.name === 'AbortError') {
+        throw new HiveApiError(
+          'Request timed out after 30 seconds. Please check your connection.',
+          undefined,
+          undefined,
+          true
+        );
+      }
+      // Other network errors
+      throw new HiveApiError(
+        `Network error: ${error.message}. Please check your connection.`,
+        undefined,
+        undefined,
+        true
+      );
+    }
+    // Re-throw HiveApiError and other errors
+    throw error;
   }
+}
 
-  return data as T;
+async function request<T>(
+  endpoint: string,
+  options: {
+    method?: string;
+    body?: any;
+    requiresAuth?: boolean;
+  } = {}
+): Promise<T> {
+  return requestWithRetry<T>(endpoint, options, 0);
 }
 
 // Auth

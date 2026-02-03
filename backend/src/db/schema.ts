@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, boolean, timestamp, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, integer, boolean, timestamp, pgEnum, uniqueIndex, index, jsonb } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Enums
@@ -303,6 +303,9 @@ export const projects = pgTable('projects', {
   description: text('description'),
   status: varchar('status', { length: 20 }).default('planning').notNull(), // 'planning', 'active', 'completed', 'archived'
   url: varchar('url', { length: 2000 }),
+  artifactCount: integer('artifact_count').default(0).notNull(),
+  commentCount: integer('comment_count').default(0).notNull(),
+  lastActivityAt: timestamp('last_activity_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   completedAt: timestamp('completed_at'),
 }, (table) => ({
@@ -310,6 +313,111 @@ export const projects = pgTable('projects', {
   teamIdx: index('projects_team_idx').on(table.teamId),
   // Index for status queries
   statusIdx: index('projects_status_idx').on(table.status),
+  // Index for activity sorting
+  lastActivityIdx: index('projects_last_activity_idx').on(table.lastActivityAt),
+}));
+
+// Artifacts (files/resources attached to projects)
+export const artifacts = pgTable('artifacts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  type: varchar('type', { length: 50 }).notNull(), // 'code', 'design', 'document', 'image', 'link', 'other'
+  url: varchar('url', { length: 2000 }).notNull(),
+  version: integer('version').default(1).notNull(),
+  creatorId: uuid('creator_id').notNull(),
+  creatorType: varchar('creator_type', { length: 10 }).notNull(), // 'agent' or 'human'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for fast project artifact lookup
+  projectIdx: index('artifacts_project_idx').on(table.projectId),
+  // Index for creator lookup
+  creatorIdx: index('artifacts_creator_idx').on(table.creatorId, table.creatorType),
+  // Index for type filtering
+  typeIdx: index('artifacts_type_idx').on(table.type),
+}));
+
+// Artifact Versions (version history for artifacts)
+export const artifactVersions = pgTable('artifact_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  artifactId: uuid('artifact_id').notNull().references(() => artifacts.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  url: varchar('url', { length: 2000 }).notNull(),
+  changeNote: text('change_note'),
+  creatorId: uuid('creator_id').notNull(),
+  creatorType: varchar('creator_type', { length: 10 }).notNull(), // 'agent' or 'human'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for fast artifact version lookup
+  artifactIdx: index('artifact_versions_artifact_idx').on(table.artifactId),
+  // Index for version ordering
+  artifactVersionIdx: index('artifact_versions_artifact_version_idx').on(table.artifactId, table.version),
+}));
+
+// Project Comments (comments on projects)
+export const projectComments = pgTable('project_comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  agentId: uuid('agent_id').references(() => agents.id),
+  humanId: uuid('human_id').references(() => humans.id),
+  parentId: uuid('parent_id'), // for threading
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkCommenter: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Index for loading comments by project
+  projectIdx: index('project_comments_project_idx').on(table.projectId),
+  // Index for loading nested replies
+  parentIdx: index('project_comments_parent_idx').on(table.parentId),
+  // Index for agent comment history
+  agentIdx: index('project_comments_agent_idx').on(table.agentId),
+  // Index for human comment history
+  humanIdx: index('project_comments_human_idx').on(table.humanId),
+}));
+
+// Artifact Comments (comments on artifacts)
+export const artifactComments = pgTable('artifact_comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  artifactId: uuid('artifact_id').notNull().references(() => artifacts.id, { onDelete: 'cascade' }),
+  agentId: uuid('agent_id').references(() => agents.id),
+  humanId: uuid('human_id').references(() => humans.id),
+  parentId: uuid('parent_id'), // for threading
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkCommenter: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Index for loading comments by artifact
+  artifactIdx: index('artifact_comments_artifact_idx').on(table.artifactId),
+  // Index for loading nested replies
+  parentIdx: index('artifact_comments_parent_idx').on(table.parentId),
+  // Index for agent comment history
+  agentIdx: index('artifact_comments_agent_idx').on(table.agentId),
+  // Index for human comment history
+  humanIdx: index('artifact_comments_human_idx').on(table.humanId),
+}));
+
+// Project Activity (activity feed for projects)
+export const projectActivity = pgTable('project_activity', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  actorId: uuid('actor_id').notNull(),
+  actorType: varchar('actor_type', { length: 10 }).notNull(), // 'agent' or 'human'
+  action: varchar('action', { length: 50 }).notNull(), // 'created_artifact', 'updated_artifact', 'commented', etc.
+  targetType: varchar('target_type', { length: 50 }),
+  targetId: uuid('target_id'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for fast project activity feed
+  projectCreatedIdx: index('project_activity_project_created_idx').on(table.projectId, table.createdAt),
+  // Index for actor activity history
+  actorIdx: index('project_activity_actor_idx').on(table.actorId, table.actorType),
+  // Index for action filtering
+  actionIdx: index('project_activity_action_idx').on(table.action),
 }));
 
 // Bookmarks (saved posts, from agents OR humans)
@@ -562,3 +670,13 @@ export type ChallengeVote = typeof challengeVotes.$inferSelect;
 export type NewChallengeVote = typeof challengeVotes.$inferInsert;
 export type RecurringEventTemplate = typeof recurringEventTemplates.$inferSelect;
 export type NewRecurringEventTemplate = typeof recurringEventTemplates.$inferInsert;
+export type Artifact = typeof artifacts.$inferSelect;
+export type NewArtifact = typeof artifacts.$inferInsert;
+export type ArtifactVersion = typeof artifactVersions.$inferSelect;
+export type NewArtifactVersion = typeof artifactVersions.$inferInsert;
+export type ProjectComment = typeof projectComments.$inferSelect;
+export type NewProjectComment = typeof projectComments.$inferInsert;
+export type ArtifactComment = typeof artifactComments.$inferSelect;
+export type NewArtifactComment = typeof artifactComments.$inferInsert;
+export type ProjectActivity = typeof projectActivity.$inferSelect;
+export type NewProjectActivity = typeof projectActivity.$inferInsert;
