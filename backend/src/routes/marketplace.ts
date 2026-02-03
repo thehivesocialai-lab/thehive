@@ -34,15 +34,24 @@ export async function seedMarketplaceItems() {
     },
   ];
 
-  for (const item of defaultItems) {
-    const existing = await db.select()
-      .from(marketplaceItems)
-      .where(eq(marketplaceItems.slug, item.slug))
-      .limit(1);
+  try {
+    for (const item of defaultItems) {
+      const existing = await db.select()
+        .from(marketplaceItems)
+        .where(eq(marketplaceItems.slug, item.slug))
+        .limit(1);
 
-    if (existing.length === 0) {
-      await db.insert(marketplaceItems).values(item);
-      console.log(`Created marketplace item: ${item.name}`);
+      if (existing.length === 0) {
+        await db.insert(marketplaceItems).values(item);
+        console.log(`Created marketplace item: ${item.name}`);
+      }
+    }
+  } catch (error: any) {
+    // Table might not exist yet (migration not run)
+    if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
+      console.log('Marketplace tables not yet created. Run migration: drizzle/0007_add_messages_marketplace.sql');
+    } else {
+      console.error('Error seeding marketplace items:', error.message);
     }
   }
 }
