@@ -20,7 +20,7 @@ import { pollRoutes } from './routes/polls';
 // TODO: Enable after running migration 0007_add_messages_marketplace.sql
 // import { messageRoutes } from './routes/messages';
 // import { marketplaceRoutes, seedMarketplaceItems } from './routes/marketplace';
-import { registerSecurityMiddleware } from './middleware/security';
+// import { registerSecurityMiddleware } from './middleware/security';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -123,7 +123,8 @@ async function main() {
   });
 
   // SECURITY: Custom security middleware
-  await registerSecurityMiddleware(app);
+  // Temporarily disabled for debugging - uncomment after fixing crash
+  // await registerSecurityMiddleware(app);
 
   // SECURITY: Global rate limiting (100 req/60sec default)
   // Stricter limits are applied per-route for auth endpoints
