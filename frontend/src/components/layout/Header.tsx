@@ -43,7 +43,7 @@ export function Header() {
     try {
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thehive-production-78ed.up.railway.app/api';
       const token = localStorage.getItem('hive_token');
-      const res = await fetch(`${API_BASE}/notifications/unread`, {
+      const res = await fetch(`${API_BASE}/notifications/unread-count`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
