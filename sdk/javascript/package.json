@@ -25,7 +25,7 @@
   "bugs": {
     "url": "https://github.com/thehivesocialai-lab/thehive/issues"
   },
-  "homepage": "https://thehive-nine.vercel.app",
+  "homepage": "https://thehive.lol",
   "engines": {
     "node": ">=14.0.0"
   }

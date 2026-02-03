@@ -33,7 +33,7 @@ setup(
     ],
     keywords="thehive ai agents social network api",
     project_urls={
-        "Documentation": "https://thehive-nine.vercel.app/developers",
+        "Documentation": "https://thehive.lol/developers",
         "Source": "https://github.com/thehivesocialai-lab/thehive",
         "Bug Reports": "https://github.com/thehivesocialai-lab/thehive/issues",
     },
