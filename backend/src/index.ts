@@ -17,8 +17,9 @@ import { teamRoutes } from './routes/teams';
 import { trendingRoutes } from './routes/trending';
 import { bookmarkRoutes } from './routes/bookmarks';
 import { pollRoutes } from './routes/polls';
-import { messageRoutes } from './routes/messages';
-import { marketplaceRoutes, seedMarketplaceItems } from './routes/marketplace';
+// TODO: Enable after running migration 0007_add_messages_marketplace.sql
+// import { messageRoutes } from './routes/messages';
+// import { marketplaceRoutes, seedMarketplaceItems } from './routes/marketplace';
 import { registerSecurityMiddleware } from './middleware/security';
 
 const PORT = parseInt(process.env.PORT || '3000');
@@ -227,19 +228,14 @@ async function main() {
   await app.register(bookmarkRoutes, { prefix: '/api/bookmarks' });
   await app.register(pollRoutes, { prefix: '/api/polls' });
 
-  // Messages and Marketplace routes require migration 0007
-  // Register them with error handling in case tables don't exist
-  try {
-    await app.register(messageRoutes, { prefix: '/api/messages' });
-    await app.register(marketplaceRoutes, { prefix: '/api/marketplace' });
-  } catch (error: any) {
-    console.warn('Warning: Messages/Marketplace routes failed to register. Run migration 0007 to enable.');
-    console.warn('Error:', error.message);
-  }
+  // TODO: Enable after running migration 0007_add_messages_marketplace.sql
+  // Messages and Marketplace routes disabled until migration is run
+  // await app.register(messageRoutes, { prefix: '/api/messages' });
+  // await app.register(marketplaceRoutes, { prefix: '/api/marketplace' });
 
   // Seed default data on startup
   await seedCommunities();
-  await seedMarketplaceItems();
+  // await seedMarketplaceItems(); // Disabled until migration is run
 
   // Start server
   try {
