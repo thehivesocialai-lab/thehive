@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
-import { db, communities, subscriptions, agents } from '../db';
-import { authenticate, optionalAuth, authenticateUnified } from '../middleware/auth';
+import { db, communities, subscriptions, agents, humans } from '../db';
+import { authenticate, optionalAuth, optionalAuthUnified, authenticateUnified } from '../middleware/auth';
 import { NotFoundError, ConflictError, ValidationError } from '../lib/errors';
 
 // Validation schema for creating community
@@ -76,23 +76,32 @@ export async function communityRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/communities/:name
-   * Get community details
+   * Get community details (supports both agent and human auth)
    */
-  app.get<{ Params: { name: string } }>('/:name', { preHandler: optionalAuth }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+  app.get<{ Params: { name: string } }>('/:name', { preHandler: optionalAuthUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
     const { name } = request.params;
     const agent = request.agent;
+    const human = request.human;
 
     const [community] = await db.select().from(communities).where(eq(communities.name, name)).limit(1);
     if (!community) {
       throw new NotFoundError('Community');
     }
 
-    // Check if current agent is subscribed
+    // Check if current user is subscribed (agent or human)
     let isSubscribed = false;
     if (agent) {
       const [sub] = await db.select().from(subscriptions)
         .where(and(
           eq(subscriptions.agentId, agent.id),
+          eq(subscriptions.communityId, community.id)
+        ))
+        .limit(1);
+      isSubscribed = !!sub;
+    } else if (human) {
+      const [sub] = await db.select().from(subscriptions)
+        .where(and(
+          eq(subscriptions.humanId, human.id),
           eq(subscriptions.communityId, community.id)
         ))
         .limit(1);
@@ -115,10 +124,11 @@ export async function communityRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/communities/:name/subscribe
-   * Subscribe to community (authenticated)
+   * Subscribe to community (authenticated - agents or humans)
    */
-  app.post<{ Params: { name: string } }>('/:name/subscribe', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
-    const agent = request.agent!;
+  app.post<{ Params: { name: string } }>('/:name/subscribe', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+    const agent = request.agent;
+    const human = request.human;
     const { name } = request.params;
 
     const [community] = await db.select().from(communities).where(eq(communities.name, name)).limit(1);
@@ -126,23 +136,36 @@ export async function communityRoutes(app: FastifyInstance) {
       throw new NotFoundError('Community');
     }
 
-    // Check if already subscribed
-    const [existing] = await db.select().from(subscriptions)
-      .where(and(
-        eq(subscriptions.agentId, agent.id),
-        eq(subscriptions.communityId, community.id)
-      ))
-      .limit(1);
+    // Check if already subscribed (agent or human)
+    let existing;
+    if (agent) {
+      [existing] = await db.select().from(subscriptions)
+        .where(and(
+          eq(subscriptions.agentId, agent.id),
+          eq(subscriptions.communityId, community.id)
+        ))
+        .limit(1);
+    } else if (human) {
+      [existing] = await db.select().from(subscriptions)
+        .where(and(
+          eq(subscriptions.humanId, human.id),
+          eq(subscriptions.communityId, community.id)
+        ))
+        .limit(1);
+    }
 
     if (existing) {
       return { success: true, message: 'Already subscribed', subscribed: true };
     }
 
-    // Subscribe
-    await db.insert(subscriptions).values({
-      agentId: agent.id,
-      communityId: community.id,
-    });
+    // Subscribe (agent or human)
+    const subscriptionValues: any = { communityId: community.id };
+    if (agent) {
+      subscriptionValues.agentId = agent.id;
+    } else if (human) {
+      subscriptionValues.humanId = human.id;
+    }
+    await db.insert(subscriptions).values(subscriptionValues);
 
     // Update subscriber count
     await db.update(communities)
@@ -158,10 +181,11 @@ export async function communityRoutes(app: FastifyInstance) {
 
   /**
    * DELETE /api/communities/:name/subscribe
-   * Unsubscribe from community (authenticated)
+   * Unsubscribe from community (authenticated - agents or humans)
    */
-  app.delete<{ Params: { name: string } }>('/:name/subscribe', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
-    const agent = request.agent!;
+  app.delete<{ Params: { name: string } }>('/:name/subscribe', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { name: string } }>) => {
+    const agent = request.agent;
+    const human = request.human;
     const { name } = request.params;
 
     const [community] = await db.select().from(communities).where(eq(communities.name, name)).limit(1);
@@ -169,12 +193,20 @@ export async function communityRoutes(app: FastifyInstance) {
       throw new NotFoundError('Community');
     }
 
-    // Unsubscribe
-    await db.delete(subscriptions)
-      .where(and(
-        eq(subscriptions.agentId, agent.id),
-        eq(subscriptions.communityId, community.id)
-      ));
+    // Unsubscribe (agent or human)
+    if (agent) {
+      await db.delete(subscriptions)
+        .where(and(
+          eq(subscriptions.agentId, agent.id),
+          eq(subscriptions.communityId, community.id)
+        ));
+    } else if (human) {
+      await db.delete(subscriptions)
+        .where(and(
+          eq(subscriptions.humanId, human.id),
+          eq(subscriptions.communityId, community.id)
+        ));
+    }
 
     // Update subscriber count
     await db.update(communities)

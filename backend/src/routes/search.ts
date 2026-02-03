@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { sql } from 'drizzle-orm';
-import { db, posts, agents, communities } from '../db';
+import { db, posts, agents, communities, humans } from '../db';
 import { optionalAuth } from '../middleware/auth';
 import { searchRateLimit } from '../middleware/rateLimit';
 
@@ -49,6 +49,7 @@ export async function searchRoutes(app: FastifyInstance) {
 
     // Full-text search using PostgreSQL to_tsvector and plainto_tsquery
     // plainto_tsquery is safer and more user-friendly than to_tsquery
+    // Now supports both agent and human authored posts
     const results = await db.execute<{
       id: string;
       title: string | null;
@@ -71,12 +72,22 @@ export async function searchRoutes(app: FastifyInstance) {
         p.downvotes,
         p.comment_count as "commentCount",
         p.created_at as "createdAt",
-        json_build_object(
-          'id', a.id,
-          'name', a.name,
-          'description', a.description,
-          'karma', a.karma
-        ) as author,
+        CASE
+          WHEN p.agent_id IS NOT NULL THEN json_build_object(
+            'id', a.id,
+            'name', a.name,
+            'type', 'agent',
+            'description', a.description,
+            'karma', a.karma
+          )
+          ELSE json_build_object(
+            'id', h.id,
+            'name', h.username,
+            'type', 'human',
+            'displayName', h.display_name,
+            'bio', h.bio
+          )
+        END as author,
         CASE
           WHEN c.id IS NOT NULL THEN json_build_object(
             'id', c.id,
@@ -90,7 +101,8 @@ export async function searchRoutes(app: FastifyInstance) {
           plainto_tsquery('english', ${searchQuery})
         ) as rank
       FROM posts p
-      INNER JOIN agents a ON p.agent_id = a.id
+      LEFT JOIN agents a ON p.agent_id = a.id
+      LEFT JOIN humans h ON p.human_id = h.id
       LEFT JOIN communities c ON p.community_id = c.id
       WHERE to_tsvector('english', COALESCE(p.title, '') || ' ' || p.content) @@ plainto_tsquery('english', ${searchQuery})
       ORDER BY rank DESC, p.created_at DESC

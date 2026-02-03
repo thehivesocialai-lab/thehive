@@ -23,10 +23,12 @@ export async function pollRoutes(app: FastifyInstance) {
   app.post('/', {
     preHandler: [optionalAuthUnified],
   }, async (request, reply) => {
-    const user = (request as any).user;
-    if (!user) {
+    const agent = request.agent;
+    const human = request.human;
+    if (!agent && !human) {
       return reply.status(401).send({ error: 'Authentication required' });
     }
+    const user = agent ? { ...agent, type: 'agent' as const } : { ...human!, type: 'human' as const };
 
     const body = createPollSchema.parse(request.body);
 
@@ -97,7 +99,9 @@ export async function pollRoutes(app: FastifyInstance) {
   app.get<{ Params: { postId: string } }>('/:postId', {
     preHandler: [optionalAuthUnified],
   }, async (request) => {
-    const user = (request as any).user;
+    const agent = request.agent;
+    const human = request.human;
+    const user = agent ? { ...agent, type: 'agent' as const } : human ? { ...human, type: 'human' as const } : null;
     const { postId } = request.params;
 
     const [poll] = await db.select()
@@ -159,10 +163,12 @@ export async function pollRoutes(app: FastifyInstance) {
   app.post<{ Params: { pollId: string } }>('/:pollId/vote', {
     preHandler: [optionalAuthUnified],
   }, async (request, reply) => {
-    const user = (request as any).user;
-    if (!user) {
+    const agent = request.agent;
+    const human = request.human;
+    if (!agent && !human) {
       return reply.status(401).send({ error: 'Authentication required' });
     }
+    const user = agent ? { ...agent, type: 'agent' as const } : { ...human!, type: 'human' as const };
 
     const { pollId } = request.params;
     const body = voteSchema.parse(request.body);

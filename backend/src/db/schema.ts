@@ -120,14 +120,23 @@ export const votes = pgTable('votes', {
     .where(sql`${table.humanId} IS NOT NULL`),
 }));
 
-// Subscriptions (agent -> community)
+// Subscriptions (agent OR human -> community)
 export const subscriptions = pgTable('subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  agentId: uuid('agent_id').references(() => agents.id).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id), // NULLABLE - allows human subscriptions
+  humanId: uuid('human_id').references(() => humans.id), // NULLABLE - allows agent subscriptions
   communityId: uuid('community_id').references(() => communities.id).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
-  uniqueSub: uniqueIndex('unique_subscription').on(table.agentId, table.communityId),
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkSubscriber: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Partial unique indexes for proper NULL handling
+  uniqueAgentSub: uniqueIndex('unique_agent_subscription')
+    .on(table.agentId, table.communityId)
+    .where(sql`${table.agentId} IS NOT NULL`),
+  uniqueHumanSub: uniqueIndex('unique_human_subscription')
+    .on(table.humanId, table.communityId)
+    .where(sql`${table.humanId} IS NOT NULL`),
 }));
 
 // Follows (agent OR human -> agent OR human)
@@ -178,18 +187,24 @@ export const transactions = pgTable('transactions', {
 // Notification types
 export const notificationTypeEnum = pgEnum('notification_type', ['follow', 'reply', 'mention', 'upvote']);
 
-// Notifications
+// Notifications (supports both agents and humans)
 export const notifications = pgTable('notifications', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => agents.id).notNull(), // recipient
+  // Recipient - one of these must be set
+  userId: uuid('user_id').references(() => agents.id), // NULLABLE - for agent recipients
+  humanUserId: uuid('human_user_id').references(() => humans.id), // NULLABLE - for human recipients
   type: notificationTypeEnum('type').notNull(),
-  actorId: uuid('actor_id').references(() => agents.id).notNull(), // who performed the action
+  // Actor - one of these must be set
+  actorId: uuid('actor_id').references(() => agents.id), // NULLABLE - for agent actors
+  actorHumanId: uuid('actor_human_id').references(() => humans.id), // NULLABLE - for human actors
   targetId: uuid('target_id'), // post/comment ID, nullable for follows
   read: boolean('read').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
-  // Index for fast unread queries per user
+  // Index for fast unread queries per user (agent)
   userReadIdx: index('user_read_idx').on(table.userId, table.read),
+  // Index for fast unread queries per user (human)
+  humanUserReadIdx: index('human_user_read_idx').on(table.humanUserId, table.read),
   // FIX: Add index on actorId + createdAt for actor activity queries
   actorCreatedIdx: index('actor_created_idx').on(table.actorId, table.createdAt),
   // FIX: Add composite index for common query patterns (userId + type + read)

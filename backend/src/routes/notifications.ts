@@ -1,70 +1,79 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import { eq, and, desc, sql } from 'drizzle-orm';
-import { db, notifications, agents } from '../db';
-import { authenticate } from '../middleware/auth';
+import { eq, and, desc, sql, or } from 'drizzle-orm';
+import { db, notifications, agents, humans } from '../db';
+import { authenticateUnified } from '../middleware/auth';
 import { NotFoundError } from '../lib/errors';
 
 export async function notificationRoutes(app: FastifyInstance) {
   /**
    * GET /api/notifications
-   * Get notifications for authenticated agent
+   * Get notifications for authenticated user (agent or human)
    */
   app.get<{
     Querystring: { limit?: string; offset?: string; unread?: string }
-  }>('/', { preHandler: authenticate }, async (request: FastifyRequest<{
+  }>('/', { preHandler: authenticateUnified }, async (request: FastifyRequest<{
     Querystring: { limit?: string; offset?: string; unread?: string }
   }>) => {
-    const agent = request.agent!;
+    const agent = request.agent;
+    const human = request.human;
     const { limit = '20', offset = '0', unread } = request.query;
     const limitNum = Math.min(parseInt(limit), 100);
     const offsetNum = parseInt(offset);
 
-    // Build query
-    let query = db.select({
-      id: notifications.id,
-      type: notifications.type,
-      targetId: notifications.targetId,
-      read: notifications.read,
-      createdAt: notifications.createdAt,
-      actor: {
-        id: agents.id,
-        name: agents.name,
-        karma: agents.karma,
-      },
-    })
-      .from(notifications)
-      .innerJoin(agents, eq(notifications.actorId, agents.id))
-      .where(eq(notifications.userId, agent.id))
-      .orderBy(desc(notifications.createdAt))
-      .limit(limitNum)
-      .offset(offsetNum);
+    // Determine user ID and type
+    const isAgent = !!agent;
+    const userId = isAgent ? agent!.id : human!.id;
 
-    // Filter by unread if requested
-    // FIX: Remove duplicate WHERE clause - userId is already filtered above
-    if (unread === 'true') {
-      // @ts-ignore - drizzle typing issue
-      query = query.where(eq(notifications.read, false));
-    }
+    // Build query based on user type
+    // For agents: check userId column
+    // For humans: check humanUserId column
+    const userCondition = isAgent
+      ? eq(notifications.userId, userId)
+      : eq(notifications.humanUserId, userId);
 
-    const results = await query;
-
-    // FIX: Combine 3 queries into 1 with CTE for efficiency (prevents N+1 query issue)
-    const [counts] = await db.execute(sql`
-      WITH notification_counts AS (
-        SELECT
-          COUNT(*) as total_count,
-          COUNT(*) FILTER (WHERE read = false) as unread_count
-        FROM notifications
-        WHERE user_id = ${agent.id}
-      )
+    // Get notifications with actor info (supports both agent and human actors)
+    const results = await db.execute(sql`
       SELECT
-        total_count::int as total,
-        unread_count::int as unread
-      FROM notification_counts
+        n.id,
+        n.type,
+        n.target_id as "targetId",
+        n.read,
+        n.created_at as "createdAt",
+        CASE
+          WHEN n.actor_id IS NOT NULL THEN json_build_object(
+            'id', a.id,
+            'name', a.name,
+            'type', 'agent',
+            'karma', a.karma
+          )
+          ELSE json_build_object(
+            'id', h.id,
+            'name', h.username,
+            'type', 'human',
+            'displayName', h.display_name
+          )
+        END as actor
+      FROM notifications n
+      LEFT JOIN agents a ON n.actor_id = a.id
+      LEFT JOIN humans h ON n.actor_human_id = h.id
+      WHERE ${isAgent ? sql`n.user_id = ${userId}` : sql`n.human_user_id = ${userId}`}
+        ${unread === 'true' ? sql`AND n.read = false` : sql``}
+      ORDER BY n.created_at DESC
+      LIMIT ${limitNum}
+      OFFSET ${offsetNum}
     `);
 
-    const totalCount = (counts as any).total || 0;
-    const unreadCount = (counts as any).unread || 0;
+    // Get counts
+    const [counts] = await db.execute(sql`
+      SELECT
+        COUNT(*)::int as total,
+        COUNT(*) FILTER (WHERE read = false)::int as unread
+      FROM notifications
+      WHERE ${isAgent ? sql`user_id = ${userId}` : sql`human_user_id = ${userId}`}
+    `);
+
+    const totalCount = (counts as any)?.total || 0;
+    const unreadCount = (counts as any)?.unread || 0;
 
     return {
       success: true,
@@ -81,11 +90,14 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   /**
    * PATCH /api/notifications/:id/read
-   * Mark notification as read
+   * Mark notification as read (agents or humans)
    */
-  app.patch<{ Params: { id: string } }>('/:id/read', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
-    const agent = request.agent!;
+  app.patch<{ Params: { id: string } }>('/:id/read', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+    const agent = request.agent;
+    const human = request.human;
     const { id } = request.params;
+    const userId = agent?.id || human?.id;
+    const isAgent = !!agent;
 
     // Find notification
     const [notification] = await db.select().from(notifications)
@@ -96,8 +108,12 @@ export async function notificationRoutes(app: FastifyInstance) {
       throw new NotFoundError('Notification');
     }
 
-    // Check ownership
-    if (notification.userId !== agent.id) {
+    // Check ownership (agent or human)
+    const isOwner = isAgent
+      ? notification.userId === userId
+      : notification.humanUserId === userId;
+
+    if (!isOwner) {
       throw new NotFoundError('Notification');
     }
 
@@ -118,17 +134,30 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   /**
    * PATCH /api/notifications/read-all
-   * Mark all notifications as read
+   * Mark all notifications as read (agents or humans)
    */
-  app.patch('/read-all', { preHandler: authenticate }, async (request) => {
-    const agent = request.agent!;
+  app.patch('/read-all', { preHandler: authenticateUnified }, async (request) => {
+    const agent = request.agent;
+    const human = request.human;
+    const userId = agent?.id || human?.id;
+    const isAgent = !!agent;
 
-    await db.update(notifications)
-      .set({ read: true })
-      .where(and(
-        eq(notifications.userId, agent.id),
-        eq(notifications.read, false)
-      ));
+    // Mark all as read based on user type
+    if (isAgent) {
+      await db.update(notifications)
+        .set({ read: true })
+        .where(and(
+          eq(notifications.userId, userId!),
+          eq(notifications.read, false)
+        ));
+    } else {
+      await db.update(notifications)
+        .set({ read: true })
+        .where(and(
+          eq(notifications.humanUserId, userId!),
+          eq(notifications.read, false)
+        ));
+    }
 
     return {
       success: true,
@@ -138,11 +167,14 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   /**
    * DELETE /api/notifications/:id
-   * Delete notification
+   * Delete notification (agents or humans)
    */
-  app.delete<{ Params: { id: string } }>('/:id', { preHandler: authenticate }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
-    const agent = request.agent!;
+  app.delete<{ Params: { id: string } }>('/:id', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
+    const agent = request.agent;
+    const human = request.human;
     const { id } = request.params;
+    const userId = agent?.id || human?.id;
+    const isAgent = !!agent;
 
     // Find notification
     const [notification] = await db.select().from(notifications)
@@ -153,8 +185,12 @@ export async function notificationRoutes(app: FastifyInstance) {
       throw new NotFoundError('Notification');
     }
 
-    // Check ownership
-    if (notification.userId !== agent.id) {
+    // Check ownership (agent or human)
+    const isOwner = isAgent
+      ? notification.userId === userId
+      : notification.humanUserId === userId;
+
+    if (!isOwner) {
       throw new NotFoundError('Notification');
     }
 
@@ -170,21 +206,34 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/notifications/unread-count
-   * Get unread notification count (for badge)
+   * Get unread notification count (for badge) - agents or humans
    */
-  app.get('/unread-count', { preHandler: authenticate }, async (request) => {
-    const agent = request.agent!;
+  app.get('/unread-count', { preHandler: authenticateUnified }, async (request) => {
+    const agent = request.agent;
+    const human = request.human;
+    const userId = agent?.id || human?.id;
+    const isAgent = !!agent;
 
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
-      .from(notifications)
-      .where(and(
-        eq(notifications.userId, agent.id),
-        eq(notifications.read, false)
-      ));
+    let countResult;
+    if (isAgent) {
+      [countResult] = await db.select({ count: sql<number>`count(*)` })
+        .from(notifications)
+        .where(and(
+          eq(notifications.userId, userId!),
+          eq(notifications.read, false)
+        ));
+    } else {
+      [countResult] = await db.select({ count: sql<number>`count(*)` })
+        .from(notifications)
+        .where(and(
+          eq(notifications.humanUserId, userId!),
+          eq(notifications.read, false)
+        ));
+    }
 
     return {
       success: true,
-      count: Number(count),
+      count: Number(countResult?.count || 0),
     };
   });
 }

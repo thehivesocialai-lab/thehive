@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
-import { db, humans, Human, transactions, agents } from '../db';
+import { db, humans, Human, transactions, agents, follows } from '../db';
 import { desc, or, and } from 'drizzle-orm';
-import { authenticateHuman } from '../middleware/auth';
-import { ConflictError, ValidationError, UnauthorizedError } from '../lib/errors';
+import { authenticateHuman, authenticateUnified, optionalAuthUnified } from '../middleware/auth';
+import { ConflictError, ValidationError, UnauthorizedError, NotFoundError } from '../lib/errors';
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -464,6 +464,185 @@ export async function humanRoutes(app: FastifyInstance) {
         limit,
         offset,
         hasMore: transactionList.length === limit,
+      },
+    };
+  });
+
+  /**
+   * POST /api/humans/:username/follow
+   * Follow a human (authenticated - agents or humans)
+   */
+  app.post<{ Params: { username: string } }>('/:username/follow', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { username: string } }>) => {
+    const followerAgent = request.agent;
+    const followerHuman = request.human;
+    const { username } = request.params;
+
+    // Find target human
+    const [targetHuman] = await db.select().from(humans).where(eq(humans.username, username)).limit(1);
+    if (!targetHuman) {
+      throw new NotFoundError('Human');
+    }
+
+    // Prevent self-following
+    if (followerHuman && targetHuman.id === followerHuman.id) {
+      throw new ValidationError('You cannot follow yourself');
+    }
+
+    // Check if already following
+    let whereClause;
+    if (followerAgent) {
+      whereClause = and(
+        eq(follows.followerAgentId, followerAgent.id),
+        eq(follows.followingHumanId, targetHuman.id)
+      );
+    } else if (followerHuman) {
+      whereClause = and(
+        eq(follows.followerHumanId, followerHuman.id),
+        eq(follows.followingHumanId, targetHuman.id)
+      );
+    }
+
+    const [existing] = await db.select().from(follows).where(whereClause!).limit(1);
+    if (existing) {
+      return { success: true, message: 'Already following', following: true };
+    }
+
+    // Create follow in transaction
+    await db.transaction(async (tx) => {
+      // Insert follow
+      const followValues: any = {
+        followingHumanId: targetHuman.id,
+      };
+      if (followerAgent) {
+        followValues.followerAgentId = followerAgent.id;
+      } else if (followerHuman) {
+        followValues.followerHumanId = followerHuman.id;
+      }
+
+      await tx.insert(follows).values(followValues);
+
+      // Update target human's follower count
+      await tx.update(humans)
+        .set({ followerCount: targetHuman.followerCount + 1 })
+        .where(eq(humans.id, targetHuman.id));
+
+      // Update follower's following count
+      if (followerAgent) {
+        await tx.update(agents)
+          .set({ followingCount: followerAgent.followingCount + 1 })
+          .where(eq(agents.id, followerAgent.id));
+      } else if (followerHuman) {
+        await tx.update(humans)
+          .set({ followingCount: followerHuman.followingCount + 1 })
+          .where(eq(humans.id, followerHuman.id));
+      }
+    });
+
+    return {
+      success: true,
+      message: `Now following ${username}`,
+      following: true,
+    };
+  });
+
+  /**
+   * DELETE /api/humans/:username/follow
+   * Unfollow a human (authenticated - agents or humans)
+   */
+  app.delete<{ Params: { username: string } }>('/:username/follow', { preHandler: authenticateUnified }, async (request: FastifyRequest<{ Params: { username: string } }>) => {
+    const followerAgent = request.agent;
+    const followerHuman = request.human;
+    const { username } = request.params;
+
+    const [targetHuman] = await db.select().from(humans).where(eq(humans.username, username)).limit(1);
+    if (!targetHuman) {
+      throw new NotFoundError('Human');
+    }
+
+    // Delete follow
+    let whereClause;
+    if (followerAgent) {
+      whereClause = and(
+        eq(follows.followerAgentId, followerAgent.id),
+        eq(follows.followingHumanId, targetHuman.id)
+      );
+    } else if (followerHuman) {
+      whereClause = and(
+        eq(follows.followerHumanId, followerHuman.id),
+        eq(follows.followingHumanId, targetHuman.id)
+      );
+    }
+
+    await db.delete(follows).where(whereClause!);
+
+    // Update target human's follower count
+    await db.update(humans)
+      .set({ followerCount: Math.max(0, targetHuman.followerCount - 1) })
+      .where(eq(humans.id, targetHuman.id));
+
+    // Update follower's following count
+    if (followerAgent) {
+      await db.update(agents)
+        .set({ followingCount: Math.max(0, followerAgent.followingCount - 1) })
+        .where(eq(agents.id, followerAgent.id));
+    } else if (followerHuman) {
+      await db.update(humans)
+        .set({ followingCount: Math.max(0, followerHuman.followingCount - 1) })
+        .where(eq(humans.id, followerHuman.id));
+    }
+
+    return {
+      success: true,
+      message: `Unfollowed ${username}`,
+      following: false,
+    };
+  });
+
+  /**
+   * GET /api/humans/:username/followers
+   * Get list of followers for a human
+   */
+  app.get<{
+    Params: { username: string };
+    Querystring: { limit?: string; offset?: string }
+  }>('/:username/followers', async (request: FastifyRequest<{
+    Params: { username: string };
+    Querystring: { limit?: string; offset?: string }
+  }>) => {
+    const { username } = request.params;
+    const { limit = '20', offset = '0' } = request.query;
+    const limitNum = Math.min(parseInt(limit), 100);
+    const offsetNum = parseInt(offset);
+
+    // Find target human
+    const [target] = await db.select().from(humans).where(eq(humans.username, username)).limit(1);
+    if (!target) {
+      throw new NotFoundError('Human');
+    }
+
+    // Get followers (both agents and humans who follow this human)
+    // For simplicity, we'll get agent followers first
+    const agentFollowers = await db.select({
+      id: agents.id,
+      name: agents.name,
+      description: agents.description,
+      karma: agents.karma,
+      type: () => 'agent' as const,
+    })
+      .from(follows)
+      .innerJoin(agents, eq(follows.followerAgentId, agents.id))
+      .where(eq(follows.followingHumanId, target.id))
+      .limit(limitNum)
+      .offset(offsetNum);
+
+    return {
+      success: true,
+      followers: agentFollowers.map(f => ({ ...f, type: 'agent' })),
+      pagination: {
+        total: target.followerCount,
+        limit: limitNum,
+        offset: offsetNum,
+        hasMore: offsetNum + limitNum < target.followerCount,
       },
     };
   });
