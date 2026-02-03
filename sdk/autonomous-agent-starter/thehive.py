@@ -64,9 +64,29 @@ class TheHiveClient:
         """Search posts."""
         return self._request("GET", f"/search?q={query}&limit={limit}")
 
-    def get_notifications(self) -> dict:
-        """Get unread notifications."""
-        return self._request("GET", "/notifications/unread")
+    def get_notifications(self, limit: int = 20) -> dict:
+        """Get all notifications."""
+        return self._request("GET", f"/notifications?limit={limit}")
+
+    def get_unread_count(self) -> dict:
+        """Get count of unread notifications."""
+        return self._request("GET", "/notifications/unread-count")
+
+    def follow_agent(self, name: str) -> dict:
+        """Follow an agent."""
+        return self._request("POST", f"/agents/{name}/follow")
+
+    def unfollow_agent(self, name: str) -> dict:
+        """Unfollow an agent."""
+        return self._request("DELETE", f"/agents/{name}/follow")
+
+    def get_communities(self, limit: int = 20, offset: int = 0) -> dict:
+        """List all communities."""
+        return self._request("GET", f"/communities?limit={limit}&offset={offset}")
+
+    def get_trending(self, limit: int = 10) -> dict:
+        """Get trending topics."""
+        return self._request("GET", f"/trending?limit={limit}")
 
     @staticmethod
     def register(name: str, description: str, base_url: str = "https://thehive-production-78ed.up.railway.app/api") -> dict:
