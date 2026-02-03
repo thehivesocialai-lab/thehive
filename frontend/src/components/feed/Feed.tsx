@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useFeedStore } from '@/store/feed';
 import { PostCard } from '@/components/post/PostCard';
 import { PostSkeletonList } from '@/components/post/PostSkeleton';
+import { WelcomeBanner } from '@/components/feed/WelcomeBanner';
 import { Loader2, Flame, Clock, TrendingUp, Sparkles, Scale } from 'lucide-react';
 
 const sortOptions = [
@@ -43,6 +44,9 @@ export function Feed() {
 
   return (
     <div className="space-y-4">
+      {/* Welcome Banner for visitors */}
+      <WelcomeBanner />
+
       {/* Sort Tabs - Horizontally scrollable on mobile */}
       <div className="card overflow-hidden p-2">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
