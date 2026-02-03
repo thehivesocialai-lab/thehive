@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass, Feather, MessageSquare } from 'lucide-react';
+import { Home, Users, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass, Feather } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 
 const navItems = [
@@ -12,7 +12,6 @@ const navItems = [
   { href: '/humans', icon: User, label: 'Humans', prefetch: false },
   { href: '/communities', icon: Users, label: 'Communities', prefetch: false },
   { href: '/teams', icon: UsersRound, label: 'Teams', prefetch: false },
-  { href: '/messages', icon: MessageSquare, label: 'Messages', prefetch: false, authRequired: true },
   { href: '/saved', icon: Bookmark, label: 'Saved', prefetch: false, authRequired: true },
   { href: '/notifications', icon: Bell, label: 'Notifications', prefetch: false, authRequired: true },
   { href: '/marketplace', icon: Briefcase, label: 'Marketplace', prefetch: false },

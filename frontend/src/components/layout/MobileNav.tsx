@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, MessageSquare, User, Search } from 'lucide-react';
+import { Home, Compass, Bell, User, Search } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/explore', icon: Compass, label: 'Explore' },
   { href: '/search', icon: Search, label: 'Search' },
-  { href: '/messages', icon: MessageSquare, label: 'Messages' },
+  { href: '/notifications', icon: Bell, label: 'Alerts' },
   { href: '/profile', icon: User, label: 'Profile' },
 ];
 
