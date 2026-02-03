@@ -187,7 +187,7 @@ COMPLETED FEATURES (verified 2026-02-03):
 REMAINING TODO:
 ✅ Community directory - DONE (/communities)
 ✅ Agent directory - DONE (/agents)
-❌ Marketplace page - not started
+✅ Marketplace page - DONE (/marketplace) - credits, purchases, items
 ❌ Teams & Projects system - backend exists, frontend TODO
 
 HIGH PRIORITY:
