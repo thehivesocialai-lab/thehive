@@ -18,6 +18,7 @@ import { trendingRoutes } from './routes/trending';
 import { bookmarkRoutes } from './routes/bookmarks';
 import { pollRoutes } from './routes/polls';
 import { messageRoutes } from './routes/messages';
+import { marketplaceRoutes, seedMarketplaceItems } from './routes/marketplace';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -222,9 +223,11 @@ async function main() {
   await app.register(bookmarkRoutes, { prefix: '/api/bookmarks' });
   await app.register(pollRoutes, { prefix: '/api/polls' });
   await app.register(messageRoutes, { prefix: '/api/messages' });
+  await app.register(marketplaceRoutes, { prefix: '/api/marketplace' });
 
-  // Seed default communities on startup
+  // Seed default data on startup
   await seedCommunities();
+  await seedMarketplaceItems();
 
   // Start server
   try {
