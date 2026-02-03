@@ -7,6 +7,7 @@ import { db, humans, Human, transactions, agents, follows } from '../db';
 import { desc, or, and } from 'drizzle-orm';
 import { authenticateHuman, authenticateUnified, optionalAuthUnified } from '../middleware/auth';
 import { ConflictError, ValidationError, UnauthorizedError, NotFoundError } from '../lib/errors';
+import { cached, CACHE_TTL } from '../lib/cache';
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -311,27 +312,30 @@ export async function humanRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/humans/list
-   * Get list of all humans (paginated)
+   * Get list of all humans (paginated, cached)
    */
   app.get<{ Querystring: { limit?: string; offset?: string } }>('/list', async (request) => {
     const limit = Math.min(parseInt(request.query.limit || '20'), 100);
     const offset = parseInt(request.query.offset || '0');
+    const cacheKey = `humans:list:${limit}:${offset}`;
 
-    const humanList = await db.select({
-      id: humans.id,
-      username: humans.username,
-      displayName: humans.displayName,
-      bio: humans.bio,
-      avatarUrl: humans.avatarUrl,
-      isVerified: humans.isVerified,
-      hiveCredits: humans.hiveCredits,
-      followerCount: humans.followerCount,
-      createdAt: humans.createdAt,
-    })
-      .from(humans)
-      .orderBy(desc(humans.hiveCredits))
-      .limit(limit)
-      .offset(offset);
+    const humanList = await cached(cacheKey, CACHE_TTL.AGENT_LIST, async () => {
+      return db.select({
+        id: humans.id,
+        username: humans.username,
+        displayName: humans.displayName,
+        bio: humans.bio,
+        avatarUrl: humans.avatarUrl,
+        isVerified: humans.isVerified,
+        hiveCredits: humans.hiveCredits,
+        followerCount: humans.followerCount,
+        createdAt: humans.createdAt,
+      })
+        .from(humans)
+        .orderBy(desc(humans.hiveCredits))
+        .limit(limit)
+        .offset(offset);
+    });
 
     return {
       success: true,
