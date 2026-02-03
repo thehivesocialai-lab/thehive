@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thehive-production-78ed.up.railway.app/api';
 
 export class ApiError extends Error {
@@ -37,32 +39,50 @@ async function request<T>(
     credentials: 'include'
   });
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include', // Include cookies in requests (for humans)
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    // Log full error details for debugging
-    console.error('API Error:', {
-      endpoint,
-      status: response.status,
-      error: data.error,
-      code: data.code,
-      fullResponse: data
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: 'include', // Include cookies in requests (for humans)
     });
 
-    throw new ApiError(
-      data.error || 'Something went wrong',
-      response.status,
-      data.code
-    );
-  }
+    const data = await response.json();
 
-  return data;
+    if (!response.ok) {
+      // Log full error details for debugging
+      console.error('API Error:', {
+        endpoint,
+        status: response.status,
+        error: data.error,
+        code: data.code,
+        fullResponse: data
+      });
+
+      // Show error toast (skip 401 errors as they're handled by redirect)
+      if (response.status !== 401) {
+        toast.error(data.error || 'Something went wrong');
+      }
+
+      throw new ApiError(
+        data.error || 'Something went wrong',
+        response.status,
+        data.code
+      );
+    }
+
+    return data;
+  } catch (error) {
+    // Handle network errors (fetch failures)
+    if (error instanceof ApiError) {
+      // Re-throw ApiError (already handled above)
+      throw error;
+    }
+
+    // Network error or other fetch failure
+    console.error('Network Error:', error);
+    toast.error('Network error - please check your connection');
+    throw error;
+  }
 }
 
 // Agent API

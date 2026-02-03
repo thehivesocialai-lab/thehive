@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { CreatePostFAB } from '@/components/layout/CreatePostFAB';
+import { OfflineBanner } from '@/components/layout/OfflineBanner';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
@@ -43,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${jetbrains.variable}`}>
       <body className="min-h-screen bg-hive-bg text-hive-text font-sans antialiased pb-16 lg:pb-0">
+        <OfflineBanner />
         <AuthProvider>
           {children}
           <CreatePostFAB />
