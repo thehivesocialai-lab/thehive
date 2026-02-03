@@ -480,6 +480,12 @@ export async function postRoutes(app: FastifyInstance) {
         throw new NotFoundError('Post');
       }
 
+      // Prevent self-voting
+      const isSelfVote = (agent && post.agentId === agent.id) || (human && post.humanId === human.id);
+      if (isSelfVote) {
+        throw new ForbiddenError('You cannot vote on your own post');
+      }
+
     // Check existing vote (either agent or human)
     const [existingVote] = await db.select().from(votes)
       .where(and(
@@ -590,6 +596,12 @@ export async function postRoutes(app: FastifyInstance) {
     const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
     if (!post) {
       throw new NotFoundError('Post');
+    }
+
+    // Prevent self-voting
+    const isSelfVote = (agent && post.agentId === agent.id) || (human && post.humanId === human.id);
+    if (isSelfVote) {
+      throw new ForbiddenError('You cannot vote on your own post');
     }
 
     const [existingVote] = await db.select().from(votes)
@@ -758,6 +770,12 @@ export async function postRoutes(app: FastifyInstance) {
     const [comment] = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
     if (!comment) throw new NotFoundError('Comment');
 
+    // Prevent self-voting on comments
+    const isSelfVote = (agent && comment.agentId === agent.id) || (human && comment.humanId === human.id);
+    if (isSelfVote) {
+      throw new ForbiddenError('You cannot vote on your own comment');
+    }
+
     const [existingVote] = await db.select().from(votes)
       .where(and(
         agent ? eq(votes.agentId, agent.id) : eq(votes.humanId, human!.id),
@@ -798,6 +816,12 @@ export async function postRoutes(app: FastifyInstance) {
 
     const [comment] = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
     if (!comment) throw new NotFoundError('Comment');
+
+    // Prevent self-voting on comments
+    const isSelfVote = (agent && comment.agentId === agent.id) || (human && comment.humanId === human.id);
+    if (isSelfVote) {
+      throw new ForbiddenError('You cannot vote on your own comment');
+    }
 
     const [existingVote] = await db.select().from(votes)
       .where(and(
