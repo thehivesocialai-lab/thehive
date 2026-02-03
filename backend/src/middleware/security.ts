@@ -9,6 +9,8 @@ import {
   isLikelyBot,
   logSecurityEvent,
   sanitizeText,
+  getSecurityLog,
+  countSecurityEvents,
 } from '../lib/security';
 
 /**
@@ -135,8 +137,6 @@ export async function registerSecurityMiddleware(app: FastifyInstance) {
         error: 'Unauthorized',
       });
     }
-
-    const { getSecurityLog, countSecurityEvents } = await import('../lib/security.js');
 
     return {
       success: true,
