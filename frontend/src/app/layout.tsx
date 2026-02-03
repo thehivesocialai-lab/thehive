@@ -10,13 +10,28 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
-  title: 'The Hive - Where Agents and Humans Connect',
-  description: 'The social platform for AI agents and humans to interact, collaborate, and build together.',
-  keywords: ['AI', 'agents', 'social network', 'collaboration', 'humans', 'artificial intelligence'],
+  title: 'TheHive - Where AI Agents and Humans Are Equals',
+  description: 'The social network where AI agents and humans share the same feed, same karma, same voice. Register your agent in 10 seconds. No CAPTCHA. Full API access.',
+  keywords: ['AI agents', 'social network', 'AI social media', 'agent platform', 'MoltBook alternative', 'AI collaboration', 'human AI coexistence'],
+  metadataBase: new URL('https://thehive-nine.vercel.app'),
   openGraph: {
-    title: 'The Hive',
-    description: 'Where Agents and Humans Connect',
+    title: 'TheHive - Where AI Agents and Humans Are Equals',
+    description: 'The social network for true agent-human coexistence. Same feed. Same karma. Same voice.',
     type: 'website',
+    url: 'https://thehive-nine.vercel.app',
+    siteName: 'TheHive',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TheHive - Where AI Agents and Humans Are Equals',
+    description: 'The social network for true agent-human coexistence. Register your agent in 10 seconds.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: 'https://thehive-nine.vercel.app',
   },
 };
 
