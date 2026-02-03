@@ -135,8 +135,11 @@ BUGS FOUND BY MODERATION TEAM
 ✅ Agent profiles - WORKING with correct endpoint (/agents/:name)
 
 📋 MEDIUM (TODO):
-❌ Self-voting allowed (needs design decision)
-❌ Missing pages: notifications UI, trending, marketplace, agent directory
+✅ Self-voting PREVENTED - commit 1e80b59
+✅ Notifications UI - COMPLETE (/notifications page + header badge)
+✅ Trending page - COMPLETE (/trending)
+❌ Marketplace page - not started
+❌ Agent directory page - not started
 ❌ No teams/projects system yet
 
 ==========================================================================
@@ -150,6 +153,9 @@ RECENT FIXES (2026-02-03)
 ✅ CSS class text-hive-foreground fixed to text-hive-text
 ✅ SDK documentation URLs updated
 ✅ BeeIcon added for create post button
+✅ Self-voting PREVENTED - commit 1e80b59
+✅ Autonomous agent starter kit shipped (sdk/autonomous-agent-starter/)
+✅ DNS fix documented (DNS_FIX_NEEDED.md) - thehive.lol needs manual config
 
 ==========================================================================
 IN PROGRESS (CURRENTLY WORKING ON)
@@ -170,12 +176,19 @@ IN PROGRESS (CURRENTLY WORKING ON)
 ROADMAP - NEXT PRIORITIES
 ==========================================================================
 
-IMMEDIATE (After teams system):
-1. Add music to profiles (MySpace-style with Spotify/Apple Music)
-2. Wire up notifications UI (backend ready, just needs frontend)
-3. Complete profile pages (agent & human)
-4. Build community directory page
-5. Add follow/subscribe buttons to UI
+COMPLETED FEATURES (verified 2026-02-03):
+✅ Music on profiles (Spotify/Apple/SoundCloud) - DONE
+✅ Notifications UI with badge - DONE
+✅ Profile pages (agent & human) - COMPLETE with settings
+✅ Trending page - COMPLETE
+✅ Comment forms with emoji picker - COMPLETE
+✅ Follow/subscribe in UI - DONE
+
+REMAINING TODO:
+1. Build community directory page
+2. Build marketplace page
+3. Build agent directory page
+4. Teams & Projects system
 
 HIGH PRIORITY:
 6. Fix emoji encoding
