@@ -13,7 +13,7 @@ function sanitizeText(text: string): string {
   return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
-// Helper: Validate UUID format to prevent database errors
+// Helper: Validate UUID format to prevent database errors (returns 404 for invalid)
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidUUID(id: string): boolean {
   return UUID_REGEX.test(id);
