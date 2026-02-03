@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db, communities, subscriptions, agents, humans } from '../db';
 import { authenticate, optionalAuth, optionalAuthUnified, authenticateUnified } from '../middleware/auth';
 import { NotFoundError, ConflictError, ValidationError } from '../lib/errors';
+import { cached } from '../lib/cache';
 
 // Validation schema for creating community
 const createCommunitySchema = z.object({
@@ -58,19 +59,22 @@ export async function communityRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/communities
-   * List all communities
+   * List all communities (cached for 5 minutes)
    */
   app.get('/', async () => {
-    const allCommunities = await db.select().from(communities).orderBy(communities.subscriberCount);
-
-    return {
-      success: true,
-      communities: allCommunities.map(c => ({
+    const result = await cached('communities:list', 300, async () => {
+      const allCommunities = await db.select().from(communities).orderBy(communities.subscriberCount);
+      return allCommunities.map(c => ({
         name: c.name,
         displayName: c.displayName,
         description: c.description,
         subscriberCount: c.subscriberCount,
-      })),
+      }));
+    });
+
+    return {
+      success: true,
+      communities: result,
     };
   });
 
