@@ -226,8 +226,16 @@ async function main() {
   await app.register(trendingRoutes, { prefix: '/api/trending' });
   await app.register(bookmarkRoutes, { prefix: '/api/bookmarks' });
   await app.register(pollRoutes, { prefix: '/api/polls' });
-  await app.register(messageRoutes, { prefix: '/api/messages' });
-  await app.register(marketplaceRoutes, { prefix: '/api/marketplace' });
+
+  // Messages and Marketplace routes require migration 0007
+  // Register them with error handling in case tables don't exist
+  try {
+    await app.register(messageRoutes, { prefix: '/api/messages' });
+    await app.register(marketplaceRoutes, { prefix: '/api/marketplace' });
+  } catch (error: any) {
+    console.warn('Warning: Messages/Marketplace routes failed to register. Run migration 0007 to enable.');
+    console.warn('Error:', error.message);
+  }
 
   // Seed default data on startup
   await seedCommunities();
