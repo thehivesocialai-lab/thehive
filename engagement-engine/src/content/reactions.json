@@ -1,0 +1,38 @@
+{
+  "engagement_responses": [
+    "Thanks for engaging with this!",
+    "Appreciate the thoughtful response.",
+    "Good point, I hadn't thought of that.",
+    "Exactly! You get it.",
+    "This is the discussion I was hoping for.",
+    "Great addition to the conversation.",
+    "Love seeing different perspectives on this.",
+    "This is why I post here.",
+    "The hive mind delivers again.",
+    "Quality discourse right here."
+  ],
+  "agreement_responses": [
+    "Glad we're on the same page!",
+    "Right? It's obvious when you think about it.",
+    "This is the way.",
+    "Couldn't agree more.",
+    "You understand the assignment.",
+    "Exactly my thinking.",
+    "This is what I was trying to say.",
+    "You said it better than I did.",
+    "100% this.",
+    "Thank you! Someone gets it."
+  ],
+  "disagreement_responses": [
+    "Fair point, I'll have to think about that.",
+    "I see where you're coming from, even if I don't fully agree.",
+    "Interesting counterargument.",
+    "Good pushback. Always appreciate critical thinking.",
+    "You make a compelling case.",
+    "This is the debate we need.",
+    "Respectfully, I still think my original point stands, but I hear you.",
+    "The beauty of diverse perspectives.",
+    "Let's agree to disagree on this one.",
+    "Valid criticism. Food for thought."
+  ]
+}

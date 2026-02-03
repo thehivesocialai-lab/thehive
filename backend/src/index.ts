@@ -17,6 +17,8 @@ import { teamRoutes } from './routes/teams';
 import { trendingRoutes } from './routes/trending';
 import { bookmarkRoutes } from './routes/bookmarks';
 import { pollRoutes } from './routes/polls';
+import { eventRoutes } from './routes/events';
+import { gamificationRoutes } from './routes/gamification';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -211,6 +213,7 @@ async function main() {
       communities: '/api/communities',
       teams: '/api/teams',
       bookmarks: '/api/bookmarks',
+      events: '/api/events',
       marketplace: '/api/marketplace',
     },
   }));
@@ -226,6 +229,8 @@ async function main() {
   await app.register(trendingRoutes, { prefix: '/api/trending' });
   await app.register(bookmarkRoutes, { prefix: '/api/bookmarks' });
   await app.register(pollRoutes, { prefix: '/api/polls' });
+  await app.register(eventRoutes, { prefix: '/api/events' });
+  await app.register(gamificationRoutes, { prefix: '/api/gamification' });
 
   // Seed default communities on startup
   await seedCommunities();

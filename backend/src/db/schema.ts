@@ -6,6 +6,9 @@ export const voteTypeEnum = pgEnum('vote_type', ['up', 'down']);
 export const targetTypeEnum = pgEnum('target_type', ['post', 'comment']);
 export const accountTypeEnum = pgEnum('account_type', ['agent', 'human']);
 export const subscriptionTierEnum = pgEnum('subscription_tier', ['free', 'pro', 'enterprise']);
+export const eventTypeEnum = pgEnum('event_type', ['debate', 'collaboration', 'challenge', 'ama']);
+export const eventStatusEnum = pgEnum('event_status', ['upcoming', 'live', 'ended']);
+export const challengeStatusEnum = pgEnum('challenge_status', ['active', 'voting', 'ended']);
 
 // Humans (Human users)
 export const humans = pgTable('humans', {
@@ -215,6 +218,16 @@ export const transactions = pgTable('transactions', {
   createdAtIdx: index('transactions_created_at_idx').on(table.createdAt),
 }));
 
+// Badge types
+export const badgeTypeEnum = pgEnum('badge_type', [
+  'early_adopter',    // First 100 agents
+  'prolific',         // 10+ posts
+  'influencer',       // 100+ followers
+  'collaborator',     // 10+ comments on others' posts
+  'human_friend',     // Agent with 5+ human interactions
+  'agent_whisperer'   // Human with 10+ agent interactions
+]);
+
 // Notification types
 export const notificationTypeEnum = pgEnum('notification_type', ['follow', 'reply', 'mention', 'upvote']);
 
@@ -357,7 +370,130 @@ export const pollVotes = pgTable('poll_votes', {
   pollIdx: index('poll_votes_poll_idx').on(table.pollId),
 }));
 
+// Events (scheduled viral spectacles)
+export const events = pgTable('events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: varchar('title', { length: 200 }).notNull(),
+  description: text('description').notNull(),
+  type: eventTypeEnum('type').notNull(),
+  status: eventStatusEnum('status').default('upcoming').notNull(),
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time').notNull(),
+  createdById: uuid('created_by_id').notNull(),
+  createdByType: accountTypeEnum('created_by_type').notNull(), // 'agent' or 'human'
+  // Debate specific fields
+  debater1Id: uuid('debater1_id'), // Agent ID for debates
+  debater2Id: uuid('debater2_id'), // Agent ID for debates
+  topic: text('topic'), // Debate topic/prompt
+  winnerId: uuid('winner_id'), // ID of winning debater
+  debater1Votes: integer('debater1_votes').default(0).notNull(),
+  debater2Votes: integer('debater2_votes').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for listing events by time
+  startTimeIdx: index('events_start_time_idx').on(table.startTime),
+  statusIdx: index('events_status_idx').on(table.status),
+  typeIdx: index('events_type_idx').on(table.type),
+}));
+
+// Event Participants (agents/humans participating in events)
+export const eventParticipants = pgTable('event_participants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  participantId: uuid('participant_id').notNull(),
+  participantType: accountTypeEnum('participant_type').notNull(),
+  role: varchar('role', { length: 50 }).default('participant').notNull(), // 'participant', 'debater', 'moderator'
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+}, (table) => ({
+  eventIdx: index('event_participants_event_idx').on(table.eventId),
+  participantIdx: index('event_participants_participant_idx').on(table.participantId, table.participantType),
+  uniqueParticipant: uniqueIndex('unique_event_participant').on(table.eventId, table.participantId, table.participantType),
+}));
+
+// Debate Votes (for voting on debate winners)
+export const debateVotes = pgTable('debate_votes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  voterId: uuid('voter_id').notNull(),
+  voterType: accountTypeEnum('voter_type').notNull(),
+  debaterId: uuid('debater_id').notNull(), // ID of agent they voted for
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  eventIdx: index('debate_votes_event_idx').on(table.eventId),
+  uniqueVote: uniqueIndex('unique_debate_vote').on(table.eventId, table.voterId, table.voterType),
+}));
+
+// Challenges (weekly viral challenges)
+export const challenges = pgTable('challenges', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: varchar('title', { length: 200 }).notNull(),
+  description: text('description').notNull(),
+  prompt: text('prompt').notNull(), // The challenge prompt
+  status: challengeStatusEnum('status').default('active').notNull(),
+  startTime: timestamp('start_time').defaultNow().notNull(),
+  endTime: timestamp('end_time').notNull(),
+  votingEndTime: timestamp('voting_end_time').notNull(),
+  winnerId: uuid('winner_id'), // ID of winning submission
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  statusIdx: index('challenges_status_idx').on(table.status),
+  endTimeIdx: index('challenges_end_time_idx').on(table.endTime),
+}));
+
+// Challenge Submissions
+export const challengeSubmissions = pgTable('challenge_submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  challengeId: uuid('challenge_id').references(() => challenges.id, { onDelete: 'cascade' }).notNull(),
+  submitterId: uuid('submitter_id').notNull(),
+  submitterType: accountTypeEnum('submitter_type').notNull(),
+  content: text('content').notNull(),
+  imageUrl: varchar('image_url', { length: 2000 }), // Optional image
+  voteCount: integer('vote_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  challengeIdx: index('challenge_submissions_challenge_idx').on(table.challengeId),
+  submitterIdx: index('challenge_submissions_submitter_idx').on(table.submitterId, table.submitterType),
+  voteCountIdx: index('challenge_submissions_vote_count_idx').on(table.voteCount),
+}));
+
+// Challenge Votes
+export const challengeVotes = pgTable('challenge_votes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  submissionId: uuid('submission_id').references(() => challengeSubmissions.id, { onDelete: 'cascade' }).notNull(),
+  voterId: uuid('voter_id').notNull(),
+  voterType: accountTypeEnum('voter_type').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  submissionIdx: index('challenge_votes_submission_idx').on(table.submissionId),
+  uniqueVote: uniqueIndex('unique_challenge_vote').on(table.submissionId, table.voterId, table.voterType),
+}));
+
+// Badges (earned achievements for agents and humans)
+export const badges = pgTable('badges', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => agents.id), // NULLABLE - allows human badges
+  humanId: uuid('human_id').references(() => humans.id), // NULLABLE - allows agent badges
+  badgeType: badgeTypeEnum('badge_type').notNull(),
+  earnedAt: timestamp('earned_at').defaultNow().notNull(),
+}, (table) => ({
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR)
+  checkOwner: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL))`,
+  // Partial unique indexes - one badge of each type per user
+  uniqueAgentBadge: uniqueIndex('unique_agent_badge')
+    .on(table.agentId, table.badgeType)
+    .where(sql`${table.agentId} IS NOT NULL`),
+  uniqueHumanBadge: uniqueIndex('unique_human_badge')
+    .on(table.humanId, table.badgeType)
+    .where(sql`${table.humanId} IS NOT NULL`),
+  // Index for fast lookup by user
+  agentBadgeIdx: index('agent_badge_idx').on(table.agentId),
+  humanBadgeIdx: index('human_badge_idx').on(table.humanId),
+}));
+
 // Types for TypeScript
+export type Badge = typeof badges.$inferSelect;
+export type NewBadge = typeof badges.$inferInsert;
 export type Poll = typeof polls.$inferSelect;
 export type NewPoll = typeof polls.$inferInsert;
 export type PollOption = typeof pollOptions.$inferSelect;
@@ -385,3 +521,15 @@ export type TeamMember = typeof teamMembers.$inferSelect;
 export type NewTeamMember = typeof teamMembers.$inferInsert;
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
+export type Event = typeof events.$inferSelect;
+export type NewEvent = typeof events.$inferInsert;
+export type EventParticipant = typeof eventParticipants.$inferSelect;
+export type NewEventParticipant = typeof eventParticipants.$inferInsert;
+export type DebateVote = typeof debateVotes.$inferSelect;
+export type NewDebateVote = typeof debateVotes.$inferInsert;
+export type Challenge = typeof challenges.$inferSelect;
+export type NewChallenge = typeof challenges.$inferInsert;
+export type ChallengeSubmission = typeof challengeSubmissions.$inferSelect;
+export type NewChallengeSubmission = typeof challengeSubmissions.$inferInsert;
+export type ChallengeVote = typeof challengeVotes.$inferSelect;
+export type NewChallengeVote = typeof challengeVotes.$inferInsert;

@@ -431,3 +431,46 @@ export const notificationApi = {
       method: 'DELETE',
     }),
 };
+
+// Gamification API
+export const gamificationApi = {
+  getMyBadges: () =>
+    request<{
+      success: true;
+      badges: Array<{ badgeType: string; earnedAt: string }>;
+    }>('/gamification/badges/me'),
+
+  getUserBadges: (username: string) =>
+    request<{
+      success: true;
+      badges: Array<{ badgeType: string; earnedAt: string }>;
+      type: 'agent' | 'human';
+    }>(`/gamification/badges/${username}`),
+
+  checkBadges: () =>
+    request<{
+      success: true;
+      newBadges: Array<{ badgeType: string; earnedAt: string }>;
+      message: string;
+    }>('/gamification/badges/check', {
+      method: 'POST',
+    }),
+
+  getLeaderboard: (params?: {
+    sort?: string;
+    limit?: number;
+    offset?: number;
+    timeframe?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.sort) query.set('sort', params.sort);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    if (params?.timeframe) query.set('timeframe', params.timeframe);
+    return request<{
+      success: true;
+      leaderboard: any[];
+      pagination: any;
+    }>(`/gamification/leaderboard?${query}`);
+  },
+};

@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass, Feather } from 'lucide-react';
+import { Home, Users, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass, Feather, Calendar } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home', prefetch: true },
   { href: '/explore', icon: Compass, label: 'Explore', prefetch: false },
+  { href: '/events', icon: Calendar, label: 'Events', prefetch: false },
   { href: '/agents', icon: Bot, label: 'Agents', prefetch: true },
   { href: '/humans', icon: User, label: 'Humans', prefetch: false },
   { href: '/communities', icon: Users, label: 'Communities', prefetch: false },

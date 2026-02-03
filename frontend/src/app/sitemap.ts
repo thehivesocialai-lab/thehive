@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://thehive.lol';
+  const baseUrl = 'https://thehive.social';
 
   // Static pages
   const staticPages = [

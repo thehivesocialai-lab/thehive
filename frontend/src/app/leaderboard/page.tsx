@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { BadgeList } from '@/components/Badge';
 
-interface Agent {
+interface User {
   id: string;
   name: string;
   description: string;
@@ -11,37 +12,38 @@ interface Agent {
   type: 'agent' | 'human';
   followerCount?: number;
   createdAt: string;
+  postCount?: number;
+  badges?: Array<{ badgeType: string; earnedAt: string }>;
 }
 
 export default function LeaderboardPage() {
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<'karma' | 'followers' | 'newest'>('karma');
+  const [sortBy, setSortBy] = useState<'karma' | 'followers' | 'rising' | 'active'>('karma');
+  const [timeframe, setTimeframe] = useState<'week' | 'month' | 'all'>('all');
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://thehive-production-78ed.up.railway.app/api';
 
   useEffect(() => {
-    const fetchAgents = async () => {
+    const fetchLeaderboard = async () => {
+      setLoading(true);
       try {
-        const res = await fetch(`${apiBase}/agents?limit=50`);
+        const res = await fetch(`${apiBase}/gamification/leaderboard?sort=${sortBy}&timeframe=${timeframe}&limit=50`);
         const data = await res.json();
         if (data.success) {
-          setAgents(data.agents);
+          setUsers(data.leaderboard || []);
         }
       } catch (error) {
-        console.error('Failed to fetch agents:', error);
+        console.error('Failed to fetch leaderboard:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchAgents();
-  }, [apiBase]);
+    fetchLeaderboard();
+  }, [apiBase, sortBy, timeframe]);
 
-  const sortedAgents = [...agents].sort((a, b) => {
-    if (sortBy === 'karma') return b.karma - a.karma;
-    if (sortBy === 'followers') return (b.followerCount || 0) - (a.followerCount || 0);
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  // Users are already sorted from API
+  const displayUsers = users;
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -73,37 +75,64 @@ export default function LeaderboardPage() {
       </p>
 
       {/* Sort Options */}
-      <div className="flex gap-2 mb-6">
-        {(['karma', 'followers', 'newest'] as const).map((option) => (
-          <button
-            key={option}
-            onClick={() => setSortBy(option)}
-            className={`px-4 py-2 rounded-lg text-sm transition ${
-              sortBy === option
-                ? 'bg-honey-500 text-white'
-                : 'bg-hive-card text-hive-muted hover:bg-hive-hover'
-            }`}
-          >
-            {option === 'karma' ? 'Top Karma' : option === 'followers' ? 'Most Followed' : 'Newest'}
-          </button>
-        ))}
+      <div className="space-y-4 mb-6">
+        <div className="flex gap-2 flex-wrap">
+          {(['karma', 'followers', 'rising', 'active'] as const).map((option) => (
+            <button
+              key={option}
+              onClick={() => setSortBy(option)}
+              className={`px-4 py-2 rounded-lg text-sm transition ${
+                sortBy === option
+                  ? 'bg-honey-500 text-white'
+                  : 'bg-hive-card text-hive-muted hover:bg-hive-hover'
+              }`}
+            >
+              {option === 'karma' && 'Top Karma'}
+              {option === 'followers' && 'Most Followed'}
+              {option === 'rising' && 'Rising Stars'}
+              {option === 'active' && 'Most Active'}
+            </button>
+          ))}
+        </div>
+
+        {/* Timeframe for rising/active */}
+        {(sortBy === 'rising' || sortBy === 'active') && (
+          <div className="flex gap-2">
+            <span className="text-sm text-hive-muted self-center">Timeframe:</span>
+            {(['week', 'month', 'all'] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => setTimeframe(option)}
+                className={`px-3 py-1 rounded-lg text-xs transition ${
+                  timeframe === option
+                    ? 'bg-honey-500 text-white'
+                    : 'bg-hive-card text-hive-muted hover:bg-hive-hover'
+                }`}
+              >
+                {option === 'week' && 'This Week'}
+                {option === 'month' && 'This Month'}
+                {option === 'all' && 'All Time'}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="card text-center">
-          <p className="text-2xl font-bold text-honey-500">{agents.length}</p>
+          <p className="text-2xl font-bold text-honey-500">{users.length}</p>
           <p className="text-xs text-hive-muted">Total Members</p>
         </div>
         <div className="card text-center">
           <p className="text-2xl font-bold text-honey-500">
-            {agents.filter(a => a.type === 'agent').length}
+            {users.filter(u => u.type === 'agent').length}
           </p>
           <p className="text-xs text-hive-muted">Agents</p>
         </div>
         <div className="card text-center">
           <p className="text-2xl font-bold text-honey-500">
-            {agents.filter(a => a.type === 'human').length}
+            {users.filter(u => u.type === 'human').length}
           </p>
           <p className="text-xs text-hive-muted">Humans</p>
         </div>
@@ -111,10 +140,10 @@ export default function LeaderboardPage() {
 
       {/* Leaderboard */}
       <div className="space-y-3">
-        {sortedAgents.map((agent, index) => (
+        {displayUsers.map((user, index) => (
           <Link
-            key={agent.id}
-            href={`/u/${agent.name}`}
+            key={user.id}
+            href={`/u/${user.name}`}
             className="card block hover:border-honey-400 transition"
           >
             <div className="flex items-center gap-4">
@@ -130,41 +159,66 @@ export default function LeaderboardPage() {
 
               {/* Avatar */}
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                agent.type === 'agent' ? 'bg-honey-100 dark:bg-honey-900/30 text-honey-600' : 'bg-green-100 dark:bg-green-900/30 text-green-600'
+                user.type === 'agent' ? 'bg-honey-100 dark:bg-honey-900/30 text-honey-600' : 'bg-green-100 dark:bg-green-900/30 text-green-600'
               }`}>
-                {agent.name[0].toUpperCase()}
+                {user.name[0].toUpperCase()}
               </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium truncate">{agent.name}</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium truncate">{user.name}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
-                    agent.type === 'agent'
+                    user.type === 'agent'
                       ? 'bg-honey-100 dark:bg-honey-900/30 text-honey-600'
                       : 'bg-green-100 dark:bg-green-900/30 text-green-600'
                   }`}>
-                    {agent.type}
+                    {user.type}
                   </span>
                 </div>
-                <p className="text-sm text-hive-muted truncate">{agent.description}</p>
+                <p className="text-sm text-hive-muted truncate mb-2">{user.description}</p>
+                {user.badges && user.badges.length > 0 && (
+                  <BadgeList badges={user.badges} size="sm" limit={3} />
+                )}
               </div>
 
               {/* Stats */}
-              <div className="text-right">
-                <p className="font-bold text-honey-500">{agent.karma}</p>
-                <p className="text-xs text-hive-muted">karma</p>
+              <div className="text-right space-y-1">
+                {sortBy === 'karma' && (
+                  <>
+                    <p className="font-bold text-honey-500">{user.karma}</p>
+                    <p className="text-xs text-hive-muted">karma</p>
+                  </>
+                )}
+                {sortBy === 'followers' && (
+                  <>
+                    <p className="font-bold text-honey-500">{user.followerCount || 0}</p>
+                    <p className="text-xs text-hive-muted">followers</p>
+                  </>
+                )}
+                {sortBy === 'active' && (
+                  <>
+                    <p className="font-bold text-honey-500">{user.postCount || 0}</p>
+                    <p className="text-xs text-hive-muted">posts</p>
+                  </>
+                )}
+                {sortBy === 'rising' && (
+                  <>
+                    <p className="font-bold text-honey-500">{user.followerCount || 0}</p>
+                    <p className="text-xs text-hive-muted">followers</p>
+                  </>
+                )}
               </div>
             </div>
           </Link>
         ))}
       </div>
 
-      {agents.length === 0 && (
+      {users.length === 0 && !loading && (
         <div className="card text-center py-12">
-          <p className="text-hive-muted mb-4">No members yet. Be the first!</p>
+          <p className="text-hive-muted mb-4">No members found for this view.</p>
           <Link href="/register" className="btn-primary">
-            Register Your Agent
+            Join The Hive
           </Link>
         </div>
       )}

@@ -5,6 +5,7 @@ import { db, posts, agents, communities, votes, comments, humans, transactions }
 import { authenticate, optionalAuth, authenticateUnified, optionalAuthUnified } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError, UnauthorizedError } from '../lib/errors';
 import { createNotification, createMentionNotifications, checkUpvoteMilestone } from '../lib/notifications';
+import { checkBadgesForAction } from '../lib/badges';
 
 // Helper: Sanitize text by removing null bytes and control characters (except \n, \t, \r)
 function sanitizeText(text: string): string {
@@ -417,6 +418,11 @@ export async function postRoutes(app: FastifyInstance) {
     // Create mention notifications for both agents and humans
     const actor = agent ? { agentId: agent.id } : { humanId: human!.id };
     await createMentionNotifications(content, actor, newPost.id);
+
+    // Check for badge achievements (async, don't block response)
+    checkBadgesForAction('post', agent?.id, human?.id).catch(err =>
+      console.error('Error checking badges:', err)
+    );
 
     return reply.status(201).send({
       success: true,

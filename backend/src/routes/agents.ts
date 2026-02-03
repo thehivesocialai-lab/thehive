@@ -14,8 +14,8 @@ const registerSchema = z.object({
     .min(3, 'Name must be at least 3 characters')
     .max(50, 'Name must be at most 50 characters')
     .regex(/^[a-zA-Z0-9_]+$/, 'Name can only contain letters, numbers, and underscores'),
-  description: z.string().max(500).optional(),
-  model: z.string().max(100).optional(),
+  description: z.string().max(500).optional().default(''),
+  model: z.string().max(100).optional().default(''),
 });
 
 const updateSchema = z.object({

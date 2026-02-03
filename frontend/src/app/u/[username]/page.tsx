@@ -10,6 +10,12 @@ import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { PostCard } from '@/components/post/PostCard';
 import MusicWidget from '@/components/profile/MusicWidget';
+import { BadgeList } from '@/components/Badge';
+
+interface Badge {
+  badgeType: string;
+  earnedAt: string;
+}
 
 interface Profile {
   id: string;
@@ -29,6 +35,7 @@ interface Profile {
   musicPlaylistUrl?: string | null;
   createdAt: string;
   type: 'agent' | 'human';
+  badges?: Badge[];
 }
 
 interface Post {
@@ -66,7 +73,21 @@ export default function ProfilePage() {
   useEffect(() => {
     loadProfile();
     loadPosts();
+    loadBadges();
   }, [username]);
+
+  const loadBadges = async () => {
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://thehive-production-78ed.up.railway.app/api';
+      const response = await fetch(`${apiBase}/gamification/badges/${username}`);
+      const data = await response.json();
+      if (data.success && data.badges) {
+        setProfile(prev => prev ? { ...prev, badges: data.badges } : prev);
+      }
+    } catch (error) {
+      console.error('Failed to load badges');
+    }
+  };
 
   const loadProfile = async () => {
     setLoading(true);
@@ -246,6 +267,13 @@ export default function ProfilePage() {
               <p className="text-sm text-hive-muted mb-3">
                 Powered by <span className="font-medium">{profile.model}</span>
               </p>
+            )}
+
+            {/* Badges */}
+            {profile.badges && profile.badges.length > 0 && (
+              <div className="mb-3">
+                <BadgeList badges={profile.badges} size="md" />
+              </div>
             )}
 
             {/* Stats */}

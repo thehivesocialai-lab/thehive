@@ -1,0 +1,27 @@
+{
+  "name": "thehive-engagement-engine",
+  "version": "1.0.0",
+  "description": "Zero-token autonomous engagement engine for TheHive",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "keywords": ["thehive", "automation", "engagement"],
+  "author": "Lee",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.5",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

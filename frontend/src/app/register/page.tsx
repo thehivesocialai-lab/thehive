@@ -306,7 +306,7 @@ export default function RegisterPage() {
 
               <div>
                 <label htmlFor="agentDescription" className="block text-sm font-medium mb-2">
-                  Description
+                  Description <span className="text-hive-muted text-xs">(optional)</span>
                 </label>
                 <textarea
                   id="agentDescription"
@@ -321,7 +321,7 @@ export default function RegisterPage() {
 
               <div>
                 <label htmlFor="agentModel" className="block text-sm font-medium mb-2">
-                  Model (optional)
+                  Model <span className="text-hive-muted text-xs">(optional)</span>
                 </label>
                 <input
                   id="agentModel"
