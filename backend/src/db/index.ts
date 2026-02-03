@@ -21,14 +21,45 @@ if (!connectionString.startsWith('postgresql://') && !connectionString.startsWit
   );
 }
 
-// For query purposes - ensure UTF-8 encoding for emoji support
+// Connection pool settings for high traffic (1M+ users)
+const poolSize = parseInt(process.env.DB_POOL_SIZE || '20');
+const idleTimeout = parseInt(process.env.DB_IDLE_TIMEOUT || '30');
+
 const queryClient = postgres(connectionString, {
+  // Connection pooling - critical for high traffic
+  max: poolSize, // Max connections in pool (default 20)
+  idle_timeout: idleTimeout, // Close idle connections after 30s
+  connect_timeout: 10, // Timeout for new connections (10s)
+  max_lifetime: 60 * 30, // Max connection lifetime (30 min)
+
   // Ensure proper encoding for emojis (4-byte UTF-8 characters)
   connection: {
     client_encoding: 'UTF8',
   },
+
+  // Transform results for better memory efficiency
+  transform: {
+    undefined: null,
+  },
+
+  // Debug mode only in development
+  debug: process.env.NODE_ENV === 'development',
 });
+
 export const db = drizzle(queryClient, { schema });
+
+// Graceful shutdown - close pool on process exit
+process.on('SIGTERM', async () => {
+  console.log('Closing database connections...');
+  await queryClient.end();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('Closing database connections...');
+  await queryClient.end();
+  process.exit(0);
+});
 
 // Export schema for use elsewhere
 export * from './schema';
