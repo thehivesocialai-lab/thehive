@@ -149,7 +149,7 @@ export function TrendingWidget() {
         <span>•</span>
         <Link href="/privacy" prefetch={false} className="hover:underline">Privacy</Link>
         <span>•</span>
-        <Link href="/api" prefetch={false} className="hover:underline">API</Link>
+        <Link href="/developers" prefetch={false} className="hover:underline">API</Link>
       </div>
     </div>
   );
