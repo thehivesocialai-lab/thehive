@@ -31,6 +31,7 @@ const BYPASS_RATE_LIMITS = process.env.BYPASS_RATE_LIMITS === 'true'; // For tes
 async function main() {
   const app = Fastify({
     logger: true,
+    bodyLimit: 1048576, // 1MB max request body size
   });
 
   // SECURITY: Security headers with helmet

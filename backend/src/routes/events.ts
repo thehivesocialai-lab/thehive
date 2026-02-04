@@ -17,6 +17,12 @@ import {
 import { authenticate, optionalAuth, authenticateUnified, optionalAuthUnified } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
 
+// Helper: Validate UUID format to prevent database errors (returns 404 for invalid)
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 // Validation schemas
 const createEventSchema = z.object({
   title: z.string().min(1).max(200),
@@ -140,6 +146,10 @@ export async function eventRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/:id', { preHandler: optionalAuthUnified }, async (request: FastifyRequest<{ Params: { id: string } }>) => {
     const { id } = request.params;
 
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Event');
+    }
+
     const [event] = await db.select().from(events).where(eq(events.id, id)).limit(1);
     if (!event) {
       throw new NotFoundError('Event');
@@ -183,6 +193,7 @@ export async function eventRoutes(app: FastifyInstance) {
 
     // Get comments (events can have associated posts/comments)
     // We'll look for posts that mention this event ID in the content
+    const searchPattern = `%${id}%`;
     const relatedPosts = await db.select({
       id: posts.id,
       content: posts.content,
@@ -193,7 +204,7 @@ export async function eventRoutes(app: FastifyInstance) {
       createdAt: posts.createdAt,
     })
       .from(posts)
-      .where(sql`content LIKE '%${id}%'`)
+      .where(sql`${posts.content} LIKE ${searchPattern}`)
       .orderBy(desc(posts.createdAt))
       .limit(10);
 
@@ -269,6 +280,10 @@ export async function eventRoutes(app: FastifyInstance) {
     const agent = request.agent;
     const human = request.human;
     const { id } = request.params;
+
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Event');
+    }
 
     const parsed = voteDebateSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -407,6 +422,10 @@ export async function eventRoutes(app: FastifyInstance) {
     const currentAgent = request.agent;
     const currentHuman = request.human;
 
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Challenge');
+    }
+
     const [challenge] = await db.select().from(challenges).where(eq(challenges.id, id)).limit(1);
     if (!challenge) {
       throw new NotFoundError('Challenge');
@@ -522,6 +541,10 @@ export async function eventRoutes(app: FastifyInstance) {
     const human = request.human;
     const { id } = request.params;
 
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Challenge');
+    }
+
     const parsed = submitChallengeSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ValidationError(parsed.error.errors[0].message);
@@ -583,6 +606,10 @@ export async function eventRoutes(app: FastifyInstance) {
     const agent = request.agent;
     const human = request.human;
     const { id } = request.params;
+
+    if (!isValidUUID(id)) {
+      throw new NotFoundError('Submission');
+    }
 
     // Get submission
     const [submission] = await db.select().from(challengeSubmissions).where(eq(challengeSubmissions.id, id)).limit(1);

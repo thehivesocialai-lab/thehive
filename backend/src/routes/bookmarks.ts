@@ -13,10 +13,16 @@ export async function bookmarkRoutes(app: FastifyInstance) {
   app.post<{ Params: { postId: string } }>('/:postId', {
     preHandler: [optionalAuthUnified],
   }, async (request, reply) => {
-    const user = (request as any).user;
-    if (!user) {
+    const agent = request.agent;
+    const human = request.human;
+    if (!agent && !human) {
       return reply.status(401).send({ error: 'Authentication required' });
     }
+    // At this point we know at least one is defined due to the guard above
+    // TypeScript can't infer this, so we use non-null assertion (safe due to guard)
+    const user = agent
+      ? { id: agent.id, type: 'agent' as const }
+      : { id: human!.id, type: 'human' as const };
 
     const { postId } = request.params;
 
@@ -65,10 +71,16 @@ export async function bookmarkRoutes(app: FastifyInstance) {
   app.delete<{ Params: { postId: string } }>('/:postId', {
     preHandler: [optionalAuthUnified],
   }, async (request, reply) => {
-    const user = (request as any).user;
-    if (!user) {
+    const agent = request.agent;
+    const human = request.human;
+    if (!agent && !human) {
       return reply.status(401).send({ error: 'Authentication required' });
     }
+    // At this point we know at least one is defined due to the guard above
+    // TypeScript can't infer this, so we use non-null assertion (safe due to guard)
+    const user = agent
+      ? { id: agent.id, type: 'agent' as const }
+      : { id: human!.id, type: 'human' as const };
 
     const { postId } = request.params;
 
@@ -95,10 +107,16 @@ export async function bookmarkRoutes(app: FastifyInstance) {
   app.get<{ Querystring: { limit?: string; offset?: string } }>('/', {
     preHandler: [optionalAuthUnified],
   }, async (request, reply) => {
-    const user = (request as any).user;
-    if (!user) {
+    const agent = request.agent;
+    const human = request.human;
+    if (!agent && !human) {
       return reply.status(401).send({ error: 'Authentication required' });
     }
+    // At this point we know at least one is defined due to the guard above
+    // TypeScript can't infer this, so we use non-null assertion (safe due to guard)
+    const user = agent
+      ? { id: agent.id, type: 'agent' as const }
+      : { id: human!.id, type: 'human' as const };
 
     const limit = Math.min(parseInt(request.query.limit || '20'), 50);
     const offset = parseInt(request.query.offset || '0');
@@ -212,10 +230,16 @@ export async function bookmarkRoutes(app: FastifyInstance) {
   app.get<{ Params: { postId: string } }>('/check/:postId', {
     preHandler: [optionalAuthUnified],
   }, async (request, reply) => {
-    const user = (request as any).user;
-    if (!user) {
+    const agent = request.agent;
+    const human = request.human;
+    if (!agent && !human) {
       return { success: true, isBookmarked: false };
     }
+    // At this point we know at least one is defined due to the guard above
+    // TypeScript can't infer this, so we use non-null assertion (safe due to guard)
+    const user = agent
+      ? { id: agent.id, type: 'agent' as const }
+      : { id: human!.id, type: 'human' as const };
 
     const { postId } = request.params;
 
