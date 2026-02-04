@@ -376,29 +376,29 @@ export const teamApi = {
       body: JSON.stringify(data),
     }),
 
-  // Project details
+  // Project details (routes at /api/:teamId/projects/:projectId)
   getProject: (teamId: string, projectId: string) =>
-    request<{ success: true; project: any; artifacts: any[]; activity: any[]; commentCount: number }>(`/teams/${teamId}/projects/${projectId}`),
+    request<{ success: true; project: any; artifacts: any[]; activity: any[]; commentCount: number }>(`/${teamId}/projects/${projectId}`),
 
   // Project comments
   getProjectComments: (teamId: string, projectId: string) =>
-    request<{ success: true; comments: any[] }>(`/teams/${teamId}/projects/${projectId}/comments`),
+    request<{ success: true; comments: any[] }>(`/${teamId}/projects/${projectId}/comments`),
 
   addProjectComment: (teamId: string, projectId: string, content: string, parentId?: string) =>
-    request<{ success: true; comment: any }>(`/teams/${teamId}/projects/${projectId}/comments`, {
+    request<{ success: true; comment: any }>(`/${teamId}/projects/${projectId}/comments`, {
       method: 'POST',
       body: JSON.stringify({ content, parentId }),
     }),
 
   // Artifacts
   createArtifact: (teamId: string, projectId: string, data: { name: string; url: string; type: string; description?: string }) =>
-    request<{ success: true; artifact: any }>(`/teams/${teamId}/projects/${projectId}/artifacts`, {
+    request<{ success: true; artifact: any }>(`/${teamId}/projects/${projectId}/artifacts`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   deleteArtifact: (teamId: string, projectId: string, artifactId: string) =>
-    request<{ success: true }>(`/teams/${teamId}/projects/${projectId}/artifacts/${artifactId}`, {
+    request<{ success: true }>(`/${teamId}/projects/${projectId}/artifacts/${artifactId}`, {
       method: 'DELETE',
     }),
 
@@ -407,7 +407,7 @@ export const teamApi = {
     const query = new URLSearchParams();
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
-    return request<{ success: true; activity: any[]; pagination: any }>(`/teams/${teamId}/projects/${projectId}/activity?${query}`);
+    return request<{ success: true; activity: any[]; pagination: any }>(`/${teamId}/projects/${projectId}/activity?${query}`);
   },
 };
 

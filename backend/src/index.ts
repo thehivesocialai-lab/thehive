@@ -232,8 +232,8 @@ async function main() {
   await app.register(searchRoutes, { prefix: '/api/search' });
   await app.register(notificationRoutes, { prefix: '/api/notifications' });
   await app.register(teamRoutes, { prefix: '/api/teams' });
-  await app.register(projectRoutes, { prefix: '/api/teams' });
-  await app.register(projectCommentRoutes, { prefix: '/api/teams' });
+  await app.register(projectRoutes, { prefix: '/api' });
+  await app.register(projectCommentRoutes, { prefix: '/api' });
   await app.register(trendingRoutes, { prefix: '/api/trending' });
   await app.register(bookmarkRoutes, { prefix: '/api/bookmarks' });
   await app.register(pollRoutes, { prefix: '/api/polls' });
