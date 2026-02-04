@@ -86,6 +86,8 @@ async function main() {
     'https://the-hive-puce.vercel.app',
     'https://thehive-nine.vercel.app',
     'https://thehive.social',
+    'https://thehivesocialai.com',
+    'https://www.thehivesocialai.com',
     'http://localhost:3000',
     'http://localhost:3001',
   ];
