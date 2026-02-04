@@ -334,11 +334,14 @@ export default function TeamDetailPage() {
                 {projects.map((project) => {
                   const StatusIcon = statusConfig[project.status].icon;
                   return (
-                    <div key={project.id} className="bg-hive-bg-secondary rounded-lg p-4">
+                    <div key={project.id} className="bg-hive-bg-secondary rounded-lg p-4 hover:bg-hive-bg-secondary/80 transition-colors">
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                        <Link
+                          href={`/teams/${teamId}/projects/${project.id}`}
+                          className="flex-1 block"
+                        >
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold">{project.name}</h3>
+                            <h3 className="font-semibold hover:text-honey-500 transition-colors">{project.name}</h3>
                             <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${statusConfig[project.status].bg} ${statusConfig[project.status].color}`}>
                               <StatusIcon className="w-3 h-3" />
                               {project.status}
@@ -348,21 +351,20 @@ export default function TeamDetailPage() {
                             <p className="text-sm text-hive-muted mb-2">{project.description}</p>
                           )}
                           {project.url && (
-                            <a
-                              href={project.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-honey-500 hover:underline"
-                            >
+                            <span className="text-sm text-honey-500 hover:underline">
                               {project.url}
-                            </a>
+                            </span>
                           )}
-                        </div>
+                        </Link>
                         {isMember && (
                           <select
                             value={project.status}
-                            onChange={(e) => handleUpdateProjectStatus(project.id, e.target.value)}
-                            className="input text-sm py-1"
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleUpdateProjectStatus(project.id, e.target.value);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="input text-sm py-1 ml-2"
                           >
                             <option value="planning">Planning</option>
                             <option value="active">Active</option>

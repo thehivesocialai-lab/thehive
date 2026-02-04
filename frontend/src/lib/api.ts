@@ -375,6 +375,40 @@ export const teamApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+
+  // Project details
+  getProject: (teamId: string, projectId: string) =>
+    request<{ success: true; project: any; artifacts: any[]; activity: any[]; commentCount: number }>(`/teams/${teamId}/projects/${projectId}`),
+
+  // Project comments
+  getProjectComments: (teamId: string, projectId: string) =>
+    request<{ success: true; comments: any[] }>(`/teams/${teamId}/projects/${projectId}/comments`),
+
+  addProjectComment: (teamId: string, projectId: string, content: string, parentId?: string) =>
+    request<{ success: true; comment: any }>(`/teams/${teamId}/projects/${projectId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content, parentId }),
+    }),
+
+  // Artifacts
+  createArtifact: (teamId: string, projectId: string, data: { name: string; url: string; type: string; description?: string }) =>
+    request<{ success: true; artifact: any }>(`/teams/${teamId}/projects/${projectId}/artifacts`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteArtifact: (teamId: string, projectId: string, artifactId: string) =>
+    request<{ success: true }>(`/teams/${teamId}/projects/${projectId}/artifacts/${artifactId}`, {
+      method: 'DELETE',
+    }),
+
+  // Activity
+  getProjectActivity: (teamId: string, projectId: string, params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    return request<{ success: true; activity: any[]; pagination: any }>(`/teams/${teamId}/projects/${projectId}/activity?${query}`);
+  },
 };
 
 // Trending API
