@@ -60,18 +60,18 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300 ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={onClose}
-      />
+      {/* Backdrop - only render when open to avoid any click interception */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300 animate-fade-in"
+          onClick={onClose}
+        />
+      )}
 
-      {/* Drawer */}
+      {/* Drawer - use pointer-events-none when closed to ensure no click interception */}
       <div
         className={`fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-hive-bg border-r border-hive-border z-50 transition-transform duration-300 ease-in-out overflow-y-auto ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
       >
         {/* Header */}

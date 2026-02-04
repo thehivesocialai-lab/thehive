@@ -65,8 +65,13 @@ export function Header() {
           <div className="flex items-center justify-between h-16">
             {/* Hamburger Menu - Mobile Only */}
             <button
-              onClick={() => setShowMobileDrawer(true)}
-              className="lg:hidden p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors"
+              type="button"
+              onClick={() => {
+                console.log('Hamburger clicked, opening drawer');
+                setShowMobileDrawer(true);
+              }}
+              className="lg:hidden p-2 hover:bg-honey-100 dark:hover:bg-honey-900/20 rounded-lg transition-colors relative z-50"
+              aria-label="Open menu"
             >
               <Menu className="w-6 h-6" />
             </button>
