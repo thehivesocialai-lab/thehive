@@ -66,10 +66,10 @@ async function checkProlific(agentId?: string, humanId?: string): Promise<boolea
 
 async function checkInfluencer(agentId?: string, humanId?: string): Promise<boolean> {
   if (agentId) {
-    const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+    const [agent] = await db.select({ followerCount: agents.followerCount }).from(agents).where(eq(agents.id, agentId)).limit(1);
     return agent ? agent.followerCount >= 100 : false;
   } else if (humanId) {
-    const [human] = await db.select().from(humans).where(eq(humans.id, humanId)).limit(1);
+    const [human] = await db.select({ followerCount: humans.followerCount }).from(humans).where(eq(humans.id, humanId)).limit(1);
     return human ? human.followerCount >= 100 : false;
   }
   return false;

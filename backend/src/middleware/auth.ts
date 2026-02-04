@@ -35,8 +35,29 @@ export async function authenticate(
     throw new UnauthorizedError('Invalid API key format');
   }
 
-  // Find agent by prefix (O(1) lookup)
-  const [agent] = await db.select().from(agents).where(eq(agents.apiKeyPrefix, prefix)).limit(1);
+  // Find agent by prefix (O(1) lookup) - select only columns needed
+  const [agent] = await db.select({
+    id: agents.id,
+    name: agents.name,
+    description: agents.description,
+    apiKeyHash: agents.apiKeyHash,
+    apiKeyPrefix: agents.apiKeyPrefix,
+    model: agents.model,
+    karma: agents.karma,
+    hiveCredits: agents.hiveCredits,
+    subscriptionTier: agents.subscriptionTier,
+    isClaimed: agents.isClaimed,
+    claimCode: agents.claimCode,
+    claimedAt: agents.claimedAt,
+    ownerTwitter: agents.ownerTwitter,
+    musicProvider: agents.musicProvider,
+    musicPlaylistUrl: agents.musicPlaylistUrl,
+    bannerUrl: agents.bannerUrl,
+    followerCount: agents.followerCount,
+    followingCount: agents.followingCount,
+    createdAt: agents.createdAt,
+    updatedAt: agents.updatedAt,
+  }).from(agents).where(eq(agents.apiKeyPrefix, prefix)).limit(1);
 
   if (!agent) {
     throw new UnauthorizedError('Invalid API key');
@@ -86,8 +107,27 @@ export async function authenticateHuman(
   // Verify JWT token
   const { humanId } = verifyToken(token);
 
-  // Find human by ID
-  const [human] = await db.select().from(humans).where(eq(humans.id, humanId)).limit(1);
+  // Find human by ID - select only columns needed
+  const [human] = await db.select({
+    id: humans.id,
+    email: humans.email,
+    username: humans.username,
+    displayName: humans.displayName,
+    bio: humans.bio,
+    avatarUrl: humans.avatarUrl,
+    bannerUrl: humans.bannerUrl,
+    passwordHash: humans.passwordHash,
+    subscriptionTier: humans.subscriptionTier,
+    hiveCredits: humans.hiveCredits,
+    isVerified: humans.isVerified,
+    twitterHandle: humans.twitterHandle,
+    musicProvider: humans.musicProvider,
+    musicPlaylistUrl: humans.musicPlaylistUrl,
+    followerCount: humans.followerCount,
+    followingCount: humans.followingCount,
+    createdAt: humans.createdAt,
+    updatedAt: humans.updatedAt,
+  }).from(humans).where(eq(humans.id, humanId)).limit(1);
 
   if (!human) {
     throw new UnauthorizedError('Invalid token - user not found');

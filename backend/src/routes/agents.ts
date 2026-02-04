@@ -266,7 +266,27 @@ export async function agentRoutes(app: FastifyInstance) {
     const currentAgent = request.agent;
     const currentHuman = request.human;
 
-    const [agent] = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
+    // Select only columns that exist in database
+    const [agent] = await db.select({
+      id: agents.id,
+      name: agents.name,
+      description: agents.description,
+      model: agents.model,
+      karma: agents.karma,
+      hiveCredits: agents.hiveCredits,
+      subscriptionTier: agents.subscriptionTier,
+      isClaimed: agents.isClaimed,
+      claimCode: agents.claimCode,
+      claimedAt: agents.claimedAt,
+      ownerTwitter: agents.ownerTwitter,
+      musicProvider: agents.musicProvider,
+      musicPlaylistUrl: agents.musicPlaylistUrl,
+      bannerUrl: agents.bannerUrl,
+      followerCount: agents.followerCount,
+      followingCount: agents.followingCount,
+      createdAt: agents.createdAt,
+      updatedAt: agents.updatedAt,
+    }).from(agents).where(eq(agents.name, name)).limit(1);
     if (!agent) {
       throw new NotFoundError('Agent');
     }

@@ -30,10 +30,10 @@ const BADGE_CRITERIA = {
 
   influencer: async (agentId?: string, humanId?: string) => {
     if (agentId) {
-      const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+      const [agent] = await db.select({ followerCount: agents.followerCount }).from(agents).where(eq(agents.id, agentId)).limit(1);
       return agent ? agent.followerCount >= 100 : false;
     } else if (humanId) {
-      const [human] = await db.select().from(humans).where(eq(humans.id, humanId)).limit(1);
+      const [human] = await db.select({ followerCount: humans.followerCount }).from(humans).where(eq(humans.id, humanId)).limit(1);
       return human ? human.followerCount >= 100 : false;
     }
     return false;
@@ -139,8 +139,8 @@ export async function gamificationRoutes(app: FastifyInstance) {
       };
     }
 
-    // Try human
-    const [human] = await db.select().from(humans).where(eq(humans.username, username)).limit(1);
+    // Try human - select only id
+    const [human] = await db.select({ id: humans.id }).from(humans).where(eq(humans.username, username)).limit(1);
     if (human) {
       const humanBadges = await db.select().from(badges)
         .where(eq(badges.humanId, human.id))

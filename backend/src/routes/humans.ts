@@ -101,14 +101,14 @@ export async function humanRoutes(app: FastifyInstance) {
 
     const { email, username, password } = parsed.data;
 
-    // Check if email is taken
-    const existingEmail = await db.select().from(humans).where(eq(humans.email, email)).limit(1);
+    // Check if email is taken - select only id
+    const existingEmail = await db.select({ id: humans.id }).from(humans).where(eq(humans.email, email)).limit(1);
     if (existingEmail.length > 0) {
       throw new ConflictError('Email is already registered');
     }
 
-    // Check if username is taken
-    const existingUsername = await db.select().from(humans).where(eq(humans.username, username)).limit(1);
+    // Check if username is taken - select only id
+    const existingUsername = await db.select({ id: humans.id }).from(humans).where(eq(humans.username, username)).limit(1);
     if (existingUsername.length > 0) {
       throw new ConflictError(`Username "${username}" is already taken`);
     }
@@ -184,8 +184,22 @@ export async function humanRoutes(app: FastifyInstance) {
 
     const { email, password } = parsed.data;
 
-    // Find human by email
-    const [human] = await db.select().from(humans).where(eq(humans.email, email)).limit(1);
+    // Find human by email - select only columns needed for login
+    const [human] = await db.select({
+      id: humans.id,
+      email: humans.email,
+      username: humans.username,
+      passwordHash: humans.passwordHash,
+      displayName: humans.displayName,
+      bio: humans.bio,
+      avatarUrl: humans.avatarUrl,
+      isVerified: humans.isVerified,
+      hiveCredits: humans.hiveCredits,
+      subscriptionTier: humans.subscriptionTier,
+      followerCount: humans.followerCount,
+      followingCount: humans.followingCount,
+      createdAt: humans.createdAt,
+    }).from(humans).where(eq(humans.email, email)).limit(1);
     if (!human) {
       throw new UnauthorizedError('Invalid email or password');
     }
@@ -285,7 +299,24 @@ export async function humanRoutes(app: FastifyInstance) {
   app.get<{ Params: { username: string } }>('/profile/:username', async (request) => {
     const { username } = request.params;
 
-    const [human] = await db.select()
+    // Select only columns that exist in database
+    const [human] = await db.select({
+      id: humans.id,
+      email: humans.email,
+      username: humans.username,
+      displayName: humans.displayName,
+      bio: humans.bio,
+      avatarUrl: humans.avatarUrl,
+      bannerUrl: humans.bannerUrl,
+      isVerified: humans.isVerified,
+      hiveCredits: humans.hiveCredits,
+      subscriptionTier: humans.subscriptionTier,
+      musicProvider: humans.musicProvider,
+      musicPlaylistUrl: humans.musicPlaylistUrl,
+      followerCount: humans.followerCount,
+      followingCount: humans.followingCount,
+      createdAt: humans.createdAt,
+    })
       .from(humans)
       .where(eq(humans.username, username))
       .limit(1);
@@ -306,11 +337,9 @@ export async function humanRoutes(app: FastifyInstance) {
       .from(comments)
       .where(eq(comments.humanId, human.id));
 
-    // Get pinned posts if exist (prioritize array over legacy single)
-    let pinnedPosts: any[] = [];
-    const pinnedIds = human.pinnedPosts && human.pinnedPosts.length > 0
-      ? human.pinnedPosts
-      : (human.pinnedPostId ? [human.pinnedPostId] : []);
+    // Pinned posts feature disabled until column exists in DB
+    const pinnedPosts: any[] = [];
+    const pinnedIds: string[] = [];
 
     if (pinnedIds.length > 0) {
       pinnedPosts = await db.select()
@@ -331,8 +360,8 @@ export async function humanRoutes(app: FastifyInstance) {
         bio: human.bio,
         avatarUrl: human.avatarUrl,
         bannerUrl: human.bannerUrl,
-        pinnedPostId: human.pinnedPostId,
-        pinnedPosts: human.pinnedPosts || [],
+        pinnedPostId: null, // Feature disabled until DB column exists
+        pinnedPosts: [], // Feature disabled until DB column exists
         isVerified: human.isVerified,
         hiveCredits: human.hiveCredits,
         subscriptionTier: human.subscriptionTier,
@@ -525,8 +554,11 @@ export async function humanRoutes(app: FastifyInstance) {
     const followerHuman = request.human;
     const { username } = request.params;
 
-    // Find target human
-    const [targetHuman] = await db.select().from(humans).where(eq(humans.username, username)).limit(1);
+    // Find target human - select only needed columns
+    const [targetHuman] = await db.select({
+      id: humans.id,
+      followerCount: humans.followerCount,
+    }).from(humans).where(eq(humans.username, username)).limit(1);
     if (!targetHuman) {
       throw new NotFoundError('Human');
     }
@@ -550,7 +582,7 @@ export async function humanRoutes(app: FastifyInstance) {
       );
     }
 
-    const [existing] = await db.select().from(follows).where(whereClause!).limit(1);
+    const [existing] = await db.select({ id: follows.id }).from(follows).where(whereClause!).limit(1);
     if (existing) {
       return { success: true, message: 'Already following', following: true };
     }
@@ -602,7 +634,10 @@ export async function humanRoutes(app: FastifyInstance) {
     const followerHuman = request.human;
     const { username } = request.params;
 
-    const [targetHuman] = await db.select().from(humans).where(eq(humans.username, username)).limit(1);
+    const [targetHuman] = await db.select({
+      id: humans.id,
+      followerCount: humans.followerCount,
+    }).from(humans).where(eq(humans.username, username)).limit(1);
     if (!targetHuman) {
       throw new NotFoundError('Human');
     }
@@ -662,8 +697,11 @@ export async function humanRoutes(app: FastifyInstance) {
     const limitNum = Math.min(parseInt(limit), 100);
     const offsetNum = parseInt(offset);
 
-    // Find target human
-    const [target] = await db.select().from(humans).where(eq(humans.username, username)).limit(1);
+    // Find target human - select only needed columns
+    const [target] = await db.select({
+      id: humans.id,
+      followerCount: humans.followerCount,
+    }).from(humans).where(eq(humans.username, username)).limit(1);
     if (!target) {
       throw new NotFoundError('Human');
     }
