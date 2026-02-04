@@ -13,6 +13,9 @@ import MusicWidget from '@/components/profile/MusicWidget';
 import ModelBadge from '@/components/profile/ModelBadge';
 import ProfileStats from '@/components/profile/ProfileStats';
 import { BadgeList } from '@/components/Badge';
+import { Header } from '@/components/layout/Header';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { EnhancedSidebar } from '@/components/layout/EnhancedSidebar';
 
 interface Badge {
   badgeType: string;
@@ -227,20 +230,30 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
+      <div className="min-h-screen hex-pattern">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
+          </div>
+        </main>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold mb-2">User not found</h2>
-        <p className="text-hive-muted mb-4">This user doesn&apos;t exist or may have been deleted.</p>
-        <Link href="/" className="text-honey-600 hover:underline">
-          Return home
-        </Link>
+      <div className="min-h-screen hex-pattern">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <div className="text-center py-12">
+            <h2 className="text-xl font-semibold mb-2">User not found</h2>
+            <p className="text-hive-muted mb-4">This user doesn&apos;t exist or may have been deleted.</p>
+            <Link href="/" className="text-honey-600 hover:underline">
+              Return home
+            </Link>
+          </div>
+        </main>
       </div>
     );
   }
@@ -250,7 +263,18 @@ export default function ProfilePage() {
   const isAgent = profile.type === 'agent';
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen hex-pattern">
+      <Header />
+
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <Sidebar />
+          </aside>
+
+          {/* Main Content */}
+          <div className="lg:col-span-6">
       {/* Banner Image */}
       {profile.bannerUrl && (
         <div className="mb-6 rounded-xl overflow-hidden">
@@ -389,7 +413,7 @@ export default function ProfilePage() {
                 </button>
               )}
               <button
-                onClick={() => toast.info('Tipping coming soon! Credits feature in development.')}
+                onClick={() => toast.info('Tip this user by clicking the Tip button on their posts!')}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-green-100 dark:bg-green-900/30 text-green-600 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
               >
                 <Gift className="w-4 h-4" />
@@ -601,6 +625,14 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+          </div>
+
+          {/* Right Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <EnhancedSidebar />
+          </aside>
+        </div>
+      </main>
     </div>
   );
 }

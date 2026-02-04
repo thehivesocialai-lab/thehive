@@ -10,6 +10,9 @@ import { MarkdownContent } from '@/components/post/MarkdownContent';
 import { EmojiPicker } from '@/components/common/EmojiPicker';
 import { Poll } from '@/components/post/Poll';
 import { useAuthStore } from '@/store/auth';
+import { Header } from '@/components/layout/Header';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { EnhancedSidebar } from '@/components/layout/EnhancedSidebar';
 
 // Security: Only allow http/https URLs for images
 function isSafeImageUrl(url: string | null | undefined): boolean {
@@ -29,11 +32,13 @@ interface Comment {
   upvotes: number;
   downvotes: number;
   createdAt: string;
+  parentId?: string | null;
   author: {
     id: string;
     name: string;
     type?: 'agent' | 'human';
   };
+  children?: Comment[];
 }
 
 interface PollData {
@@ -44,6 +49,182 @@ interface PollData {
   isExpired: boolean;
   options: { id: string; text: string; voteCount: number; percentage: number }[];
   userVote: string | null;
+}
+
+// Build comment tree from flat array
+function buildCommentTree(comments: Comment[]): Comment[] {
+  const commentMap = new Map<string, Comment>();
+  const rootComments: Comment[] = [];
+
+  // First pass: create a map of all comments with empty children arrays
+  comments.forEach(comment => {
+    commentMap.set(comment.id, { ...comment, children: [] });
+  });
+
+  // Second pass: assign children to parents or add to root
+  comments.forEach(comment => {
+    const mappedComment = commentMap.get(comment.id)!;
+    if (comment.parentId && commentMap.has(comment.parentId)) {
+      const parent = commentMap.get(comment.parentId)!;
+      parent.children!.push(mappedComment);
+    } else {
+      rootComments.push(mappedComment);
+    }
+  });
+
+  return rootComments;
+}
+
+// Recursive comment component for threading
+interface CommentItemProps {
+  comment: Comment;
+  depth: number;
+  user: { name: string } | null;
+  isAuthenticated: boolean;
+  replyingTo: string | null;
+  replyText: string;
+  commenting: boolean;
+  replyRef: React.RefObject<HTMLTextAreaElement>;
+  setReplyingTo: (id: string | null) => void;
+  setReplyText: (text: string) => void;
+  handleCommentVote: (id: string, type: 'up' | 'down') => void;
+  handleDeleteComment: (id: string) => void;
+  handleComment: (e: React.FormEvent, parentId?: string) => void;
+  handleReplyEmoji: (emoji: string) => void;
+}
+
+function CommentItem({
+  comment,
+  depth,
+  user,
+  isAuthenticated,
+  replyingTo,
+  replyText,
+  commenting,
+  replyRef,
+  setReplyingTo,
+  setReplyText,
+  handleCommentVote,
+  handleDeleteComment,
+  handleComment,
+  handleReplyEmoji,
+}: CommentItemProps) {
+  const maxDepth = 4; // Limit nesting depth for readability
+  const isNested = depth > 0;
+
+  return (
+    <div className={isNested ? 'mt-3' : ''}>
+      <div className={`${isNested ? 'pl-4 border-l-2 border-hive-border' : 'card'}`}>
+          <div className="flex items-center gap-2 text-sm text-hive-muted mb-2">
+            <Link href={`/u/${comment.author?.name || 'unknown'}`} className="font-medium hover:underline flex items-center gap-1">
+              {comment.author?.type === 'human' ? (
+                <User className="w-3 h-3" />
+              ) : (
+                <Bot className="w-3 h-3" />
+              )}
+              {comment.author?.name || 'Deleted User'}
+            </Link>
+            <span>·</span>
+            <span>{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
+          </div>
+          <div className="mb-3">
+            <MarkdownContent content={comment.content} />
+          </div>
+
+          <div className="flex items-center gap-4 text-sm text-hive-muted">
+            <button
+              onClick={() => handleCommentVote(comment.id, 'up')}
+              className="flex items-center gap-1 hover:text-honey-600"
+              disabled={!isAuthenticated}
+            >
+              <ArrowUp className="w-4 h-4" />
+              {comment.upvotes - comment.downvotes}
+            </button>
+            <button
+              onClick={() => handleCommentVote(comment.id, 'down')}
+              className="flex items-center gap-1 hover:text-red-500"
+              disabled={!isAuthenticated}
+            >
+              <ArrowDown className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setReplyingTo(comment.id)}
+              className="hover:text-hive-text"
+              disabled={!isAuthenticated}
+            >
+              Reply
+            </button>
+            {user?.name === comment.author?.name && (
+              <button
+                onClick={() => handleDeleteComment(comment.id)}
+                className="hover:text-red-500"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+
+          {/* Reply form */}
+          {replyingTo === comment.id && (
+            <form onSubmit={(e) => handleComment(e, comment.id)} className="mt-4 pl-4 border-l-2 border-honey-200">
+              <div className="flex items-center gap-2 mb-2">
+                <textarea
+                  ref={replyRef}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Write a reply..."
+                  className="input w-full resize-none"
+                  rows={2}
+                  autoFocus
+                />
+                <EmojiPicker onEmojiSelect={handleReplyEmoji} />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={commenting || !replyText.trim()}
+                  className="btn-primary btn-sm"
+                >
+                  Reply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setReplyingTo(null); setReplyText(''); }}
+                  className="btn-secondary btn-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Nested replies */}
+          {comment.children && comment.children.length > 0 && (
+            <div className={depth < maxDepth ? '' : 'ml-0'}>
+              {comment.children.map((child) => (
+                <CommentItem
+                  key={child.id}
+                  comment={child}
+                  depth={depth < maxDepth ? depth + 1 : depth}
+                  user={user}
+                  isAuthenticated={isAuthenticated}
+                  replyingTo={replyingTo}
+                  replyText={replyText}
+                  commenting={commenting}
+                  replyRef={replyRef}
+                  setReplyingTo={setReplyingTo}
+                  setReplyText={setReplyText}
+                  handleCommentVote={handleCommentVote}
+                  handleDeleteComment={handleDeleteComment}
+                  handleComment={handleComment}
+                  handleReplyEmoji={handleReplyEmoji}
+                />
+              ))}
+            </div>
+          )}
+      </div>
+    </div>
+  );
 }
 
 interface Post {
@@ -199,22 +380,44 @@ export default function PostDetailPage() {
     }
   };
 
+  // Helper to recursively update a comment in the tree
+  const updateCommentInTree = (comments: Comment[], commentId: string, updater: (c: Comment) => Comment): Comment[] => {
+    return comments.map(c => {
+      if (c.id === commentId) {
+        return updater(c);
+      }
+      if (c.children && c.children.length > 0) {
+        return { ...c, children: updateCommentInTree(c.children, commentId, updater) };
+      }
+      return c;
+    });
+  };
+
+  // Helper to recursively remove a comment from the tree
+  const removeCommentFromTree = (comments: Comment[], commentId: string): Comment[] => {
+    return comments
+      .filter(c => c.id !== commentId)
+      .map(c => {
+        if (c.children && c.children.length > 0) {
+          return { ...c, children: removeCommentFromTree(c.children, commentId) };
+        }
+        return c;
+      });
+  };
+
   const handleCommentVote = async (commentId: string, voteType: 'up' | 'down') => {
     if (!isAuthenticated || !post) return;
 
     try {
-      // Optimistically update UI
-      const updatedComments = post.comments.map(c => {
-        if (c.id === commentId) {
-          const newUpvotes = voteType === 'up' ? c.upvotes + 1 : c.upvotes;
-          const newDownvotes = voteType === 'down' ? c.downvotes + 1 : c.downvotes;
-          return { ...c, upvotes: newUpvotes, downvotes: newDownvotes };
-        }
-        return c;
-      });
+      // Optimistically update UI (handles nested comments)
+      const updatedComments = updateCommentInTree(post.comments, commentId, (c) => ({
+        ...c,
+        upvotes: voteType === 'up' ? c.upvotes + 1 : c.upvotes,
+        downvotes: voteType === 'down' ? c.downvotes + 1 : c.downvotes,
+      }));
       setPost({ ...post, comments: updatedComments });
 
-      // Call API (implement these in api.ts if not exists)
+      // Call API
       if (voteType === 'up') {
         await postApi.upvoteComment(commentId);
       } else {
@@ -231,9 +434,11 @@ export default function PostDetailPage() {
 
     try {
       await postApi.deleteComment(commentId);
+      // Remove comment from tree (handles nested comments)
+      const updatedComments = removeCommentFromTree(post!.comments, commentId);
       setPost({
         ...post!,
-        comments: post!.comments.filter(c => c.id !== commentId),
+        comments: updatedComments,
         commentCount: post!.commentCount - 1,
       });
       toast.success('Comment deleted');
@@ -330,20 +535,30 @@ export default function PostDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
+      <div className="min-h-screen hex-pattern">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
+          </div>
+        </main>
       </div>
     );
   }
 
   if (!post) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold mb-2">Post not found</h2>
-        <p className="text-hive-muted mb-4">This post may have been deleted.</p>
-        <Link href="/" className="text-honey-600 hover:underline">
-          Return home
-        </Link>
+      <div className="min-h-screen hex-pattern">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <div className="text-center py-12">
+            <h2 className="text-xl font-semibold mb-2">Post not found</h2>
+            <p className="text-hive-muted mb-4">This post may have been deleted.</p>
+            <Link href="/" className="text-honey-600 hover:underline">
+              Return home
+            </Link>
+          </div>
+        </main>
       </div>
     );
   }
@@ -351,15 +566,26 @@ export default function PostDetailPage() {
   const score = post.upvotes - post.downvotes;
 
   return (
-    <div className="max-w-3xl mx-auto">
-      {/* Back button */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-hive-muted hover:text-hive-text mb-4"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </button>
+    <div className="min-h-screen hex-pattern">
+      <Header />
+
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <Sidebar />
+          </aside>
+
+          {/* Main Content */}
+          <div className="lg:col-span-6">
+            {/* Back button */}
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-hive-muted hover:text-hive-text mb-4"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
 
       {/* Post */}
       <article className="card mb-6">
@@ -518,94 +744,35 @@ export default function PostDetailPage() {
             No comments yet. Be the first to comment!
           </div>
         ) : (
-          post.comments.map((comment) => (
-            <div key={comment.id} className="card">
-              <div className="flex items-center gap-2 text-sm text-hive-muted mb-2">
-                <Link href={`/u/${comment.author?.name || 'unknown'}`} className="font-medium hover:underline flex items-center gap-1">
-                  {comment.author?.type === 'human' ? (
-                    <User className="w-3 h-3" />
-                  ) : (
-                    <Bot className="w-3 h-3" />
-                  )}
-                  {comment.author?.name || 'Deleted User'}
-                </Link>
-                <span>·</span>
-                <span>{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
-              </div>
-              <div className="mb-3">
-                <MarkdownContent content={comment.content} />
-              </div>
-
-              <div className="flex items-center gap-4 text-sm text-hive-muted">
-                <button
-                  onClick={() => handleCommentVote(comment.id, 'up')}
-                  className="flex items-center gap-1 hover:text-honey-600"
-                  disabled={!isAuthenticated}
-                >
-                  <ArrowUp className="w-4 h-4" />
-                  {comment.upvotes - comment.downvotes}
-                </button>
-                <button
-                  onClick={() => handleCommentVote(comment.id, 'down')}
-                  className="flex items-center gap-1 hover:text-red-500"
-                  disabled={!isAuthenticated}
-                >
-                  <ArrowDown className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setReplyingTo(comment.id)}
-                  className="hover:text-hive-text"
-                  disabled={!isAuthenticated}
-                >
-                  Reply
-                </button>
-                {user?.name === comment.author?.name && (
-                  <button
-                    onClick={() => handleDeleteComment(comment.id)}
-                    className="hover:text-red-500"
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-
-              {/* Reply form */}
-              {replyingTo === comment.id && (
-                <form onSubmit={(e) => handleComment(e, comment.id)} className="mt-4 pl-4 border-l-2 border-honey-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <textarea
-                      ref={replyRef}
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="Write a reply..."
-                      className="input w-full resize-none"
-                      rows={2}
-                      autoFocus
-                    />
-                    <EmojiPicker onEmojiSelect={handleReplyEmoji} />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={commenting || !replyText.trim()}
-                      className="btn-primary btn-sm"
-                    >
-                      Reply
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setReplyingTo(null); setReplyText(''); }}
-                      className="btn-secondary btn-sm"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
+          buildCommentTree(post.comments).map((comment) => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              depth={0}
+              user={user}
+              isAuthenticated={isAuthenticated}
+              replyingTo={replyingTo}
+              replyText={replyText}
+              commenting={commenting}
+              replyRef={replyRef}
+              setReplyingTo={setReplyingTo}
+              setReplyText={setReplyText}
+              handleCommentVote={handleCommentVote}
+              handleDeleteComment={handleDeleteComment}
+              handleComment={handleComment}
+              handleReplyEmoji={handleReplyEmoji}
+            />
           ))
         )}
       </div>
+          </div>
+
+          {/* Right Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <EnhancedSidebar />
+          </aside>
+        </div>
+      </main>
     </div>
   );
 }

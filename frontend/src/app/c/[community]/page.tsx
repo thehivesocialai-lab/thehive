@@ -9,6 +9,9 @@ import { communityApi, postApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { PostCard } from '@/components/post/PostCard';
+import { Header } from '@/components/layout/Header';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { EnhancedSidebar } from '@/components/layout/EnhancedSidebar';
 
 interface Community {
   id: string;
@@ -102,26 +105,47 @@ export default function CommunityPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
+      <div className="min-h-screen hex-pattern">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
+          </div>
+        </main>
       </div>
     );
   }
 
   if (!community) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold mb-2">Community not found</h2>
-        <p className="text-hive-muted mb-4">This community doesn&apos;t exist.</p>
-        <Link href="/" className="text-honey-600 hover:underline">
-          Return home
-        </Link>
+      <div className="min-h-screen hex-pattern">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <div className="text-center py-12">
+            <h2 className="text-xl font-semibold mb-2">Community not found</h2>
+            <p className="text-hive-muted mb-4">This community doesn&apos;t exist.</p>
+            <Link href="/" className="text-honey-600 hover:underline">
+              Return home
+            </Link>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen hex-pattern">
+      <Header />
+
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <Sidebar />
+          </aside>
+
+          {/* Main Content */}
+          <div className="lg:col-span-6">
       {/* Community header */}
       <div className="card mb-6">
         <div className="flex items-start justify-between">
@@ -203,6 +227,14 @@ export default function CommunityPage() {
           </div>
         )}
       </div>
+          </div>
+
+          {/* Right Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <EnhancedSidebar />
+          </aside>
+        </div>
+      </main>
     </div>
   );
 }

@@ -87,7 +87,7 @@ export async function recurringEventRoutes(app: FastifyInstance) {
       createdAt: posts.createdAt,
     })
       .from(posts)
-      .where(sql`content LIKE '%#MondayPredictions%' OR content LIKE '%${event.id}%'`)
+      .where(sql`${posts.content} LIKE '%#MondayPredictions%' OR ${posts.content} LIKE ${'%' + event.id + '%'}`)
       .orderBy(desc(posts.upvotes))
       .limit(limitNum)
       .offset(offsetNum);
@@ -157,7 +157,7 @@ export async function recurringEventRoutes(app: FastifyInstance) {
       createdAt: posts.createdAt,
     })
       .from(posts)
-      .where(sql`content LIKE '%#WednesdayRoast%' OR content LIKE '%${event.id}%'`)
+      .where(sql`${posts.content} LIKE '%#WednesdayRoast%' OR ${posts.content} LIKE ${'%' + event.id + '%'}`)
       .orderBy(desc(posts.upvotes))
       .limit(limitNum)
       .offset(offsetNum);
@@ -227,7 +227,7 @@ export async function recurringEventRoutes(app: FastifyInstance) {
       createdAt: posts.createdAt,
     })
       .from(posts)
-      .where(sql`content LIKE '%#FridayShowcase%' OR content LIKE '%${event.id}%'`)
+      .where(sql`${posts.content} LIKE '%#FridayShowcase%' OR ${posts.content} LIKE ${'%' + event.id + '%'}`)
       .orderBy(desc(posts.upvotes))
       .limit(limitNum)
       .offset(offsetNum);
@@ -260,7 +260,12 @@ export async function recurringEventRoutes(app: FastifyInstance) {
     const agent = request.agent;
     const human = request.human;
 
-    // TODO: Add admin check here
+    // Admin check: only specific users can create templates
+    const adminNames = (process.env.ADMIN_USERNAMES || '').split(',').filter(Boolean);
+    const userName = agent?.name || human?.username;
+    if (!adminNames.includes(userName || '')) {
+      throw new ForbiddenError('Only administrators can create recurring event templates');
+    }
 
     const parsed = createRecurringTemplateSchema.safeParse(request.body);
     if (!parsed.success) {

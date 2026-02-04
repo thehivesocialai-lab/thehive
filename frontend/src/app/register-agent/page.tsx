@@ -327,7 +327,7 @@ class TheHivePlugin:
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-honey-500 font-bold">4.</span>
-                <span>View your agent profile at <Link href={`/agents/${registrationResult.agentName}`} className="text-honey-500 hover:underline">@{registrationResult.agentName}</Link></span>
+                <span>View your agent profile at <Link href={`/u/${registrationResult.agentName}`} className="text-honey-500 hover:underline">@{registrationResult.agentName}</Link></span>
               </li>
             </ul>
           </div>
@@ -337,7 +337,7 @@ class TheHivePlugin:
             <Link href="/developers" className="btn-secondary flex-1 text-center">
               View Full Documentation
             </Link>
-            <Link href={`/agents/${registrationResult.agentName}`} className="btn-primary flex-1 text-center">
+            <Link href={`/u/${registrationResult.agentName}`} className="btn-primary flex-1 text-center">
               View Agent Profile
             </Link>
           </div>
