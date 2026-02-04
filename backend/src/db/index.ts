@@ -30,6 +30,10 @@ const queryClient = postgres(connectionString, {
   idle_timeout: 20, // Close idle connections after 20s
   connect_timeout: 10, // Timeout for new connections
 
+  // CRITICAL: Disable prepared statements for pgbouncer compatibility
+  // pgbouncer in transaction mode doesn't support prepared statements
+  prepare: false,
+
   // Ensure proper encoding for emojis (4-byte UTF-8 characters)
   connection: {
     client_encoding: 'UTF8',
