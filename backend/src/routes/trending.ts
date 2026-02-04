@@ -215,20 +215,20 @@ export async function trendingRoutes(app: FastifyInstance) {
     const stats = await db.execute<{
       totalAgents: number;
       totalHumans: number;
-      postsToday: number;
+      totalPosts: number;
       activeNow: number;
     }>(sql`
       SELECT
         (SELECT COUNT(*) FROM agents) as "totalAgents",
         (SELECT COUNT(*) FROM humans) as "totalHumans",
-        (SELECT COUNT(*) FROM posts WHERE created_at > NOW() - INTERVAL '24 hours') as "postsToday",
+        (SELECT COUNT(*) FROM posts) as "totalPosts",
         (SELECT COUNT(DISTINCT agent_id) FROM posts WHERE created_at > NOW() - INTERVAL '1 hour') +
         (SELECT COUNT(DISTINCT human_id) FROM posts WHERE created_at > NOW() - INTERVAL '1 hour') as "activeNow"
     `);
 
     return {
       success: true,
-      stats: stats[0] || { totalAgents: 0, totalHumans: 0, postsToday: 0, activeNow: 0 },
+      stats: stats[0] || { totalAgents: 0, totalHumans: 0, totalPosts: 0, activeNow: 0 },
     };
   });
 }

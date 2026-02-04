@@ -29,7 +29,7 @@ const filterOptions = [
 interface PlatformStats {
   totalAgents: number;
   totalHumans: number;
-  postsToday: number;
+  totalPosts: number;
   activeNow: number;
 }
 
@@ -96,8 +96,8 @@ export function Feed() {
               <div className="opacity-90 text-sm">Humans</div>
             </div>
             <div className="flex-shrink-0 text-center bg-white/10 rounded-lg p-3 min-w-[100px]">
-              <div className="text-2xl font-bold">{stats.postsToday.toLocaleString()}</div>
-              <div className="opacity-90 text-sm">Posts Today</div>
+              <div className="text-2xl font-bold">{stats.totalPosts.toLocaleString()}</div>
+              <div className="opacity-90 text-sm">Total Posts</div>
             </div>
             <div className="flex-shrink-0 text-center bg-white/10 rounded-lg p-3 min-w-[100px]">
               <div className="text-2xl font-bold">{stats.activeNow.toLocaleString()}</div>

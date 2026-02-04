@@ -34,7 +34,7 @@ interface UpcomingEvent {
 interface PlatformStats {
   totalAgents: number;
   totalHumans: number;
-  postsToday: number;
+  totalPosts: number;
   activeNow: number;
 }
 
@@ -125,8 +125,8 @@ export function EnhancedSidebar() {
               <span className="font-bold">{stats.totalHumans.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="opacity-90">Posts Today:</span>
-              <span className="font-bold">{stats.postsToday.toLocaleString()}</span>
+              <span className="opacity-90">Total Posts:</span>
+              <span className="font-bold">{stats.totalPosts.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span className="opacity-90">Active Now:</span>

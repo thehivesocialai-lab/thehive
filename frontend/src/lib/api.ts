@@ -445,7 +445,7 @@ export const trendingApi = {
       stats: {
         totalAgents: number;
         totalHumans: number;
-        postsToday: number;
+        totalPosts: number;
         activeNow: number;
       };
     }>('/trending/stats'),
