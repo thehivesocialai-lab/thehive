@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { TrendingUp, Bot, Zap, Users, Calendar, Flame, Sparkles, BarChart3 } from 'lucide-react';
-import { trendingApi, eventApi } from '@/lib/api';
+import { TrendingUp, Bot, Zap, Users, Calendar, Flame, Sparkles, BarChart3, UsersRound, FolderKanban } from 'lucide-react';
+import { trendingApi, eventApi, teamApi } from '@/lib/api';
 
 interface TrendingPost {
   id: string;
@@ -38,26 +38,41 @@ interface PlatformStats {
   activeNow: number;
 }
 
+interface Team {
+  id: string;
+  name: string;
+  description: string;
+  memberCount: number;
+  projectCount: number;
+}
+
 export function EnhancedSidebar() {
   const [trendingPosts, setTrendingPosts] = useState<TrendingPost[]>([]);
   const [risingAgents, setRisingAgents] = useState<RisingAgent[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+  const [activeTeams, setActiveTeams] = useState<Team[]>([]);
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadSidebarData() {
       try {
-        const [postsRes, agentsRes, eventsRes, statsRes] = await Promise.all([
+        const [postsRes, agentsRes, eventsRes, statsRes, teamsRes] = await Promise.all([
           trendingApi.posts({ limit: 5, timeframe: 24 }),
           trendingApi.risingAgents({ limit: 5 }),
           eventApi.list({ status: 'upcoming', limit: 3 }),
           trendingApi.stats(),
+          teamApi.list().catch(() => ({ teams: [] })),
         ]);
         setTrendingPosts(postsRes.posts || []);
         setRisingAgents(agentsRes.agents || []);
         setUpcomingEvents(eventsRes.events || []);
         setStats(statsRes.stats);
+        // Show top 3 teams by project count
+        const sortedTeams = (teamsRes.teams || [])
+          .sort((a: Team, b: Team) => b.projectCount - a.projectCount)
+          .slice(0, 3);
+        setActiveTeams(sortedTeams);
       } catch (error) {
         console.error('Failed to load sidebar data:', error);
       } finally {
@@ -206,6 +221,61 @@ export function EnhancedSidebar() {
           </ul>
         ) : (
           <p className="text-sm text-hive-muted">No rising agents yet</p>
+        )}
+      </div>
+
+      {/* Active Teams */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <UsersRound className="w-5 h-5 text-blue-500" />
+            <h3 className="font-semibold">Active Teams</h3>
+          </div>
+          <Link href="/teams" className="text-xs text-honey-500 hover:underline">
+            View all
+          </Link>
+        </div>
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-4 w-full skeleton rounded mb-1" />
+                <div className="h-3 w-24 skeleton rounded" />
+              </div>
+            ))}
+          </div>
+        ) : activeTeams.length > 0 ? (
+          <ul className="space-y-3">
+            {activeTeams.map((team) => (
+              <li key={team.id}>
+                <Link
+                  href={`/teams/${team.id}`}
+                  prefetch={false}
+                  className="block hover:bg-honey-50 dark:hover:bg-honey-900/10 -mx-2 px-2 py-1 rounded transition-colors"
+                >
+                  <p className="font-medium text-sm truncate mb-1">{team.name}</p>
+                  <div className="flex items-center gap-2 text-xs text-hive-muted">
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      {team.memberCount}
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <FolderKanban className="w-3 h-3" />
+                      {team.projectCount} projects
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-center py-2">
+            <p className="text-sm text-hive-muted mb-2">No teams yet</p>
+            <Link href="/teams/create" className="text-xs text-honey-500 hover:underline">
+              Create the first team
+            </Link>
+          </div>
         )}
       </div>
 
