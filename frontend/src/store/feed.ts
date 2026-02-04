@@ -67,7 +67,7 @@ const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => 
 
 export const useFeedStore = create<FeedState>((set, get) => ({
   posts: [],
-  sort: 'new',
+  sort: 'hot',
   filter: 'all',
   community: null,
   isLoading: false,
