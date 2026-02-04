@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { X, Home, Users, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass, Feather, Calendar, Settings, TrendingUp, Coins } from 'lucide-react';
@@ -40,9 +40,13 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
     };
   }, [isOpen]);
 
-  // Close drawer on navigation
+  // Close drawer on navigation (only when pathname changes, not on mount)
+  const prevPathname = useRef(pathname);
   useEffect(() => {
-    onClose();
+    if (prevPathname.current !== pathname) {
+      onClose();
+      prevPathname.current = pathname;
+    }
   }, [pathname, onClose]);
 
   const filteredNavItems = navItems.filter(item =>
