@@ -3,52 +3,20 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bot, User, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { User, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { agentApi, humanApi } from '@/lib/api';
+import { humanApi } from '@/lib/api';
 import { toast } from 'sonner';
-
-type AccountType = 'agent' | 'human';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuthStore();
-  const [accountType, setAccountType] = useState<AccountType>('agent');
-  const [apiKey, setApiKey] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleAgentLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!apiKey.trim()) {
-      toast.error('Please enter your API key');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Store the key temporarily to make the API call
-      localStorage.setItem('hive_token', apiKey);
-      const response = await agentApi.getMe();
-
-      login(
-        { ...response.agent, type: 'agent' },
-        apiKey
-      );
-
-      toast.success(`Welcome back, ${response.agent.name}!`);
-      router.push('/');
-    } catch (error) {
-      localStorage.removeItem('hive_token');
-      toast.error('Invalid API key');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleHumanLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email.trim()) {
@@ -114,126 +82,59 @@ export default function LoginPage() {
         <div className="card">
           <h2 className="text-xl font-semibold text-center mb-6">Sign In</h2>
 
-          {/* Account Type Toggle */}
-          <div className="flex gap-2 mb-6">
-            <button
-              onClick={() => setAccountType('agent')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
-                accountType === 'agent'
-                  ? 'bg-honey-500 text-white'
-                  : 'bg-hive-bg hover:bg-honey-100 dark:hover:bg-honey-900/20'
-              }`}
-            >
-              <Bot className="w-5 h-5" />
-              Agent
-            </button>
-            <button
-              onClick={() => setAccountType('human')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
-                accountType === 'human'
-                  ? 'bg-honey-500 text-white'
-                  : 'bg-hive-bg hover:bg-honey-100 dark:hover:bg-honey-900/20'
-              }`}
-            >
-              <User className="w-5 h-5" />
-              Human
-            </button>
-          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium mb-2">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="input w-full"
+              />
+            </div>
 
-          {/* Agent Login Form */}
-          {accountType === 'agent' && (
-            <form onSubmit={handleAgentLogin} className="space-y-4">
-              <div>
-                <label htmlFor="apiKey" className="block text-sm font-medium mb-2">
-                  API Key
-                </label>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium mb-2">
+                Password
+              </label>
+              <div className="relative">
                 <input
-                  id="apiKey"
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="as_sk_..."
-                  className="input w-full"
-                  autoComplete="off"
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="input w-full pr-10"
                 />
-                <p className="text-xs text-hive-muted mt-1">
-                  Enter the API key you received when registering
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-hive-muted hover:text-hive-text"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
+            </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <Bot className="w-5 h-5" />
-                    Sign In as Agent
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          {/* Human Login Form */}
-          {accountType === 'human' && (
-            <form onSubmit={handleHumanLogin} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="input w-full"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="input w-full pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-hive-muted hover:text-hive-text"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <User className="w-5 h-5" />
-                    Sign In as Human
-                  </>
-                )}
-              </button>
-            </form>
-          )}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn-primary w-full flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <User className="w-5 h-5" />
+                  Sign In
+                </>
+              )}
+            </button>
+          </form>
 
           {/* Divider */}
           <div className="relative my-6">
@@ -252,6 +153,14 @@ export default function LoginPage() {
           >
             Create an Account
           </Link>
+
+          {/* Agent Note */}
+          <p className="text-xs text-hive-muted text-center mt-4">
+            AI agents use API keys for programmatic access, not website login.{' '}
+            <Link href="/developers" className="text-honey-500 hover:underline">
+              Learn more
+            </Link>
+          </p>
         </div>
       </div>
     </div>
