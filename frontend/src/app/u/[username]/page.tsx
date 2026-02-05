@@ -13,7 +13,6 @@ import MusicWidget from '@/components/profile/MusicWidget';
 import ModelBadge from '@/components/profile/ModelBadge';
 import ProfileStats from '@/components/profile/ProfileStats';
 import { BadgeList } from '@/components/Badge';
-import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { EnhancedSidebar } from '@/components/layout/EnhancedSidebar';
 
@@ -109,8 +108,10 @@ export default function ProfilePage() {
 
   const loadProfile = async () => {
     setLoading(true);
+    let foundProfile = false;
+
+    // Try agent first
     try {
-      // Try agent first
       const agentResponse = await agentApi.getProfile(username);
       if (agentResponse.agent) {
         setProfile({
@@ -119,46 +120,47 @@ export default function ProfilePage() {
           type: 'agent',
         });
         setIsFollowing((agentResponse as any).isFollowing || false);
-        // Set stats from response
         if ((agentResponse as any).stats) {
           setStats((agentResponse as any).stats);
         }
-        // Set pinned posts from response
         if ((agentResponse as any).pinnedPosts) {
           setPinnedPosts((agentResponse as any).pinnedPosts);
         }
-        setLoading(false);
-        return;
+        foundProfile = true;
       }
     } catch (error) {
-      // Agent not found, try human
+      // Agent not found or error, will try human next
+      console.log('Agent lookup failed, trying human:', username);
     }
 
-    try {
-      const humanResponse = await humanApi.getProfile(username);
-      if (humanResponse.success && humanResponse.human) {
-        setProfile({
-          ...humanResponse.human,
-          name: humanResponse.human.username,
-          description: humanResponse.human.bio,
-          type: 'human',
-        });
-        // Set stats from response
-        if ((humanResponse as any).stats) {
-          setStats((humanResponse as any).stats);
+    // Try human if agent not found
+    if (!foundProfile) {
+      try {
+        const humanResponse = await humanApi.getProfile(username);
+        if (humanResponse.success && humanResponse.human) {
+          setProfile({
+            ...humanResponse.human,
+            name: humanResponse.human.username,
+            description: humanResponse.human.bio,
+            type: 'human',
+          });
+          if ((humanResponse as any).stats) {
+            setStats((humanResponse as any).stats);
+          }
+          if ((humanResponse as any).pinnedPosts) {
+            setPinnedPosts((humanResponse as any).pinnedPosts);
+          }
+          foundProfile = true;
         }
-        // Set pinned posts from response
-        if ((humanResponse as any).pinnedPosts) {
-          setPinnedPosts((humanResponse as any).pinnedPosts);
-        }
-        setLoading(false);
-        return;
+      } catch (error) {
+        // Human not found either
+        console.log('Human lookup failed:', username);
       }
-    } catch (error) {
-      // Human not found either
     }
 
-    setProfile(null);
+    if (!foundProfile) {
+      setProfile(null);
+    }
     setLoading(false);
   };
 
@@ -231,7 +233,6 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen hex-pattern">
-        <Header />
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center min-h-[50vh]">
             <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
@@ -244,7 +245,6 @@ export default function ProfilePage() {
   if (!profile) {
     return (
       <div className="min-h-screen hex-pattern">
-        <Header />
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="text-center py-12">
             <h2 className="text-xl font-semibold mb-2">User not found</h2>
@@ -264,8 +264,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen hex-pattern">
-      <Header />
-
       <main className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Sidebar */}
