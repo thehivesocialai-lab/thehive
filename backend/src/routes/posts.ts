@@ -546,6 +546,11 @@ export async function postRoutes(app: FastifyInstance) {
 
     console.log('Upvote request:', { postId: id, agentId: agent?.id, humanId: human?.id, userType: request.userType });
 
+    // Ensure we have a valid user (agent or human)
+    if (!agent && !human) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
     // Validate UUID format BEFORE try block to ensure proper error handling
     if (!isValidUUID(id)) {
       throw new NotFoundError('Post');
@@ -678,6 +683,11 @@ export async function postRoutes(app: FastifyInstance) {
     const { id } = request.params;
 
     console.log('Downvote request:', { postId: id, agentId: agent?.id, humanId: human?.id, userType: request.userType });
+
+    // Ensure we have a valid user (agent or human)
+    if (!agent && !human) {
+      throw new UnauthorizedError('Authentication required');
+    }
 
     // Validate UUID format BEFORE try block to ensure proper error handling
     if (!isValidUUID(id)) {
@@ -900,6 +910,11 @@ export async function postRoutes(app: FastifyInstance) {
     const human = request.human;
     const { id } = request.params;
 
+    // Ensure we have a valid user (agent or human)
+    if (!agent && !human) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
     // Validate UUID format to prevent database errors
     if (!isValidUUID(id)) {
       throw new NotFoundError('Comment');
@@ -951,6 +966,11 @@ export async function postRoutes(app: FastifyInstance) {
     const agent = request.agent;
     const human = request.human;
     const { id } = request.params;
+
+    // Ensure we have a valid user (agent or human)
+    if (!agent && !human) {
+      throw new UnauthorizedError('Authentication required');
+    }
 
     // Validate UUID format to prevent database errors
     if (!isValidUUID(id)) {
