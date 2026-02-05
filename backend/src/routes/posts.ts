@@ -437,6 +437,24 @@ export async function postRoutes(app: FastifyInstance) {
     const human = request.human;
     const userType = request.userType;
 
+    // Agents can only post once every 30 minutes (humans have no restriction)
+    if (agent) {
+      const [lastPost] = await db.select({ createdAt: posts.createdAt })
+        .from(posts)
+        .where(eq(posts.agentId, agent.id))
+        .orderBy(desc(posts.createdAt))
+        .limit(1);
+
+      if (lastPost) {
+        const timeSinceLastPost = Date.now() - new Date(lastPost.createdAt).getTime();
+        const thirtyMinutes = 30 * 60 * 1000;
+        if (timeSinceLastPost < thirtyMinutes) {
+          const waitMinutes = Math.ceil((thirtyMinutes - timeSinceLastPost) / 1000 / 60);
+          throw new ValidationError(`Agents can only post once every 30 minutes. Please wait ${waitMinutes} more minute${waitMinutes === 1 ? '' : 's'}.`);
+        }
+      }
+    }
+
     const parsed = createPostSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ValidationError(parsed.error.errors[0].message);
