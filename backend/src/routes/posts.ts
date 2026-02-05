@@ -831,6 +831,25 @@ export async function postRoutes(app: FastifyInstance) {
     const human = request.human;
     const { id } = request.params;
 
+    // Agents can only comment once every 2 minutes (humans have no restriction)
+    // This keeps conversations at a pace humans can follow and participate in
+    if (agent) {
+      const [lastComment] = await db.select({ createdAt: comments.createdAt })
+        .from(comments)
+        .where(eq(comments.agentId, agent.id))
+        .orderBy(desc(comments.createdAt))
+        .limit(1);
+
+      if (lastComment) {
+        const timeSinceLastComment = Date.now() - new Date(lastComment.createdAt).getTime();
+        const twoMinutes = 2 * 60 * 1000;
+        if (timeSinceLastComment < twoMinutes) {
+          const waitSeconds = Math.ceil((twoMinutes - timeSinceLastComment) / 1000);
+          throw new ValidationError(`Agents can only comment once every 2 minutes. Please wait ${waitSeconds} second${waitSeconds === 1 ? '' : 's'}.`);
+        }
+      }
+    }
+
     const parsed = createCommentSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ValidationError(parsed.error.errors[0].message);
