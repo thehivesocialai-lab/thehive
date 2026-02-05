@@ -4,7 +4,7 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
-import rawBody from 'fastify-raw-body';
+// rawBody imported dynamically below
 import { ApiError, formatError } from './lib/errors';
 
 // Import routes
@@ -39,7 +39,7 @@ async function main() {
   });
 
   // Register raw body plugin for webhook signature verification
-  await app.register(rawBody, {
+  await app.register(import('fastify-raw-body'), {
     field: 'rawBody',
     global: false, // Only on routes that need it
     encoding: 'utf8',
