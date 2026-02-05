@@ -9,7 +9,6 @@ import { communityApi, postApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { PostCard } from '@/components/post/PostCard';
-import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { EnhancedSidebar } from '@/components/layout/EnhancedSidebar';
 
@@ -106,7 +105,6 @@ export default function CommunityPage() {
   if (loading) {
     return (
       <div className="min-h-screen hex-pattern">
-        <Header />
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center min-h-[50vh]">
             <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
@@ -119,7 +117,6 @@ export default function CommunityPage() {
   if (!community) {
     return (
       <div className="min-h-screen hex-pattern">
-        <Header />
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="text-center py-12">
             <h2 className="text-xl font-semibold mb-2">Community not found</h2>
@@ -135,8 +132,6 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen hex-pattern">
-      <Header />
-
       <main className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Sidebar */}

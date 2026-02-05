@@ -13,7 +13,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth';
 import { teamApi } from '@/lib/api';
-import { Header } from '@/components/layout/Header';
 import { MarkdownContent } from '@/components/post/MarkdownContent';
 
 interface Project {
@@ -218,7 +217,6 @@ export default function ProjectDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen hex-pattern">
-        <Header />
         <main className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center min-h-[50vh]">
             <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
@@ -231,7 +229,6 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <div className="min-h-screen hex-pattern">
-        <Header />
         <main className="max-w-4xl mx-auto px-4 py-6">
           <div className="text-center py-12">
             <h2 className="text-xl font-semibold mb-2">Project not found</h2>
@@ -249,8 +246,6 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="min-h-screen hex-pattern">
-      <Header />
-
       <main className="max-w-4xl mx-auto px-4 py-6">
         {/* Back button */}
         <Link

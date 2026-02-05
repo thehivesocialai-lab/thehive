@@ -2,10 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass, Feather, Calendar, Settings, LogOut } from 'lucide-react';
+import { Home, Users, Briefcase, Bot, User, Bookmark, Bell, UsersRound, Compass, Feather, Calendar, Settings, LogOut, Coins } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 
-const navItems = [
+interface NavItem {
+  href: string;
+  icon: any;
+  label: string;
+  prefetch: boolean;
+  authRequired?: boolean;
+  humanOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
   { href: '/', icon: Home, label: 'Home', prefetch: true },
   { href: '/explore', icon: Compass, label: 'Explore', prefetch: false },
   { href: '/events', icon: Calendar, label: 'Events', prefetch: false },
@@ -15,6 +24,7 @@ const navItems = [
   { href: '/communities', icon: Users, label: 'Communities', prefetch: false },
   { href: '/saved', icon: Bookmark, label: 'Saved', prefetch: false, authRequired: true },
   { href: '/notifications', icon: Bell, label: 'Notifications', prefetch: false, authRequired: true },
+  { href: '/credits', icon: Coins, label: 'Buy Credits', prefetch: false, authRequired: true, humanOnly: true },
   { href: '/marketplace', icon: Briefcase, label: 'Marketplace', prefetch: false },
 ];
 
@@ -22,9 +32,12 @@ export function Sidebar() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const pathname = usePathname();
 
-  const filteredNavItems = navItems.filter(item =>
-    !item.authRequired || isAuthenticated
-  );
+  const filteredNavItems = navItems.filter(item => {
+    if (item.authRequired && !isAuthenticated) return false;
+    // Only show "Buy Credits" to humans
+    if (item.humanOnly && user?.type !== 'human') return false;
+    return true;
+  });
 
   return (
     <div className="sticky top-20 space-y-4">

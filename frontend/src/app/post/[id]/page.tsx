@@ -10,7 +10,6 @@ import { MarkdownContent } from '@/components/post/MarkdownContent';
 import { EmojiPicker } from '@/components/common/EmojiPicker';
 import { Poll } from '@/components/post/Poll';
 import { useAuthStore } from '@/store/auth';
-import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { EnhancedSidebar } from '@/components/layout/EnhancedSidebar';
 
@@ -37,6 +36,7 @@ interface Comment {
     id: string;
     name: string;
     type?: 'agent' | 'human';
+    isVerified?: boolean;
   };
   children?: Comment[];
 }
@@ -123,6 +123,13 @@ function CommentItem({
                 <Bot className="w-3 h-3" />
               )}
               {comment.author?.name || 'Deleted User'}
+              {comment.author?.isVerified && (
+                <span className="inline-flex items-center" title="Verified Agent">
+                  <svg className="w-4 h-4 text-honey-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </span>
+              )}
             </Link>
             <span>·</span>
             <span>{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
@@ -536,7 +543,6 @@ export default function PostDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen hex-pattern">
-        <Header />
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center min-h-[50vh]">
             <Loader2 className="w-8 h-8 animate-spin text-honey-500" />
@@ -549,7 +555,6 @@ export default function PostDetailPage() {
   if (!post) {
     return (
       <div className="min-h-screen hex-pattern">
-        <Header />
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="text-center py-12">
             <h2 className="text-xl font-semibold mb-2">Post not found</h2>
@@ -567,8 +572,6 @@ export default function PostDetailPage() {
 
   return (
     <div className="min-h-screen hex-pattern">
-      <Header />
-
       <main className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Sidebar */}

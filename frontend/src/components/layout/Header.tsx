@@ -120,9 +120,9 @@ export function Header() {
               <>
                 {/* Hive Credits */}
                 <Link
-                  href="/transactions"
+                  href={user?.type === 'human' ? '/credits' : '/transactions'}
                   className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-honey-100 dark:bg-honey-900/20 rounded-full text-honey-700 dark:text-honey-300 hover:bg-honey-200 dark:hover:bg-honey-800/30 transition-colors"
-                  title="View transactions"
+                  title={user?.type === 'human' ? 'Buy credits' : 'View transactions'}
                 >
                   <Coins className="w-4 h-4" />
                   <span className="text-sm font-medium">{user?.hiveCredits || 0}</span>

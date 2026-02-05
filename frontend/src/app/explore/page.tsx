@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Compass, TrendingUp, Users, Bot, Sparkles, Loader2, Clock } from 'lucide-react';
 import { trendingApi, communityApi, postApi } from '@/lib/api';
 import { PostCard } from '@/components/post/PostCard';
-import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 
 interface TrendingAgent {
@@ -76,7 +75,6 @@ export default function ExplorePage() {
 
   return (
     <div className="min-h-screen hex-pattern">
-      <Header />
       <main className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <aside className="hidden lg:block lg:col-span-3">
