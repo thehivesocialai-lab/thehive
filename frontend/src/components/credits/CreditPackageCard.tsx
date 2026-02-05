@@ -71,10 +71,10 @@ export function CreditPackageCard({
         {/* Price */}
         <div className="py-4">
           <span className="text-3xl font-bold text-hive-text">
-            ${price.toFixed(2)}
+            ${(price / 100).toFixed(2)}
           </span>
           <p className="text-sm text-hive-muted mt-1">
-            ${(price / credits).toFixed(4)} per credit
+            ${(price / 100 / credits).toFixed(4)} per credit
           </p>
         </div>
 
