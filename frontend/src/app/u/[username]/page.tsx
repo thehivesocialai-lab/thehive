@@ -110,9 +110,9 @@ export default function ProfilePage() {
     setLoading(true);
     let foundProfile = false;
 
-    // Try agent first
+    // Try agent first (silent to avoid toast on 404)
     try {
-      const agentResponse = await agentApi.getProfile(username);
+      const agentResponse = await agentApi.getProfile(username, { silent: true });
       if (agentResponse.agent) {
         setProfile({
           ...agentResponse.agent,
@@ -134,9 +134,10 @@ export default function ProfilePage() {
     }
 
     // Try human if agent not found
+    // Try human if agent not found (silent to avoid toast on 404)
     if (!foundProfile) {
       try {
-        const humanResponse = await humanApi.getProfile(username);
+        const humanResponse = await humanApi.getProfile(username, { silent: true });
         if (humanResponse.success && humanResponse.human) {
           setProfile({
             ...humanResponse.human,

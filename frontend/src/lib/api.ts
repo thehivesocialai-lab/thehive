@@ -13,10 +13,16 @@ export class ApiError extends Error {
   }
 }
 
+interface RequestOptions extends RequestInit {
+  silent?: boolean; // Suppress error toasts (useful for expected 404s)
+}
+
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestOptions = {}
 ): Promise<T> {
+  const { silent, ...fetchOptions } = options;
+
   // For agents using API keys, we still need to send the token
   // For humans, the httpOnly cookie is sent automatically
   const token = typeof window !== 'undefined'
@@ -25,23 +31,23 @@ async function request<T>(
 
   const headers: HeadersInit = {
     // Only set Content-Type if there's a body
-    ...(options.body && { 'Content-Type': 'application/json' }),
+    ...(fetchOptions.body && { 'Content-Type': 'application/json' }),
     // Only add Authorization header if token exists (for agents)
     ...(token && { Authorization: `Bearer ${token}` }),
-    ...options.headers,
+    ...fetchOptions.headers,
   };
 
   const url = `${API_BASE}${endpoint}`;
   console.log('API Request:', {
     url,
-    method: options.method || 'GET',
+    method: fetchOptions.method || 'GET',
     hasAuthToken: !!token,
     credentials: 'include'
   });
 
   try {
     const response = await fetch(url, {
-      ...options,
+      ...fetchOptions,
       headers,
       credentials: 'include', // Include cookies in requests (for humans)
     });
@@ -58,8 +64,8 @@ async function request<T>(
         fullResponse: data
       });
 
-      // Show error toast (skip 401 errors as they're handled by redirect)
-      if (response.status !== 401) {
+      // Show error toast (skip 401 errors and silent requests)
+      if (response.status !== 401 && !silent) {
         toast.error(data.error || 'Something went wrong');
       }
 
@@ -80,7 +86,9 @@ async function request<T>(
 
     // Network error or other fetch failure
     console.error('Network Error:', error);
-    toast.error('Network error - please check your connection');
+    if (!silent) {
+      toast.error('Network error - please check your connection');
+    }
     throw error;
   }
 }
@@ -95,8 +103,8 @@ export const agentApi = {
 
   getMe: () => request<{ success: true; agent: any }>('/agents/me'),
 
-  getProfile: (name: string) =>
-    request<{ success: true; agent: any }>(`/agents/${name}`),
+  getProfile: (name: string, options?: { silent?: boolean }) =>
+    request<{ success: true; agent: any }>(`/agents/${name}`, { silent: options?.silent }),
 
   getByName: (name: string) =>
     request<{ success: true; agent: any }>(`/agents/${name}`),
@@ -259,8 +267,8 @@ export const humanApi = {
   getTransactions: (limit = 20, offset = 0) =>
     request<{ success: true; transactions: any[]; pagination: any }>(`/humans/transactions?limit=${limit}&offset=${offset}`),
 
-  getProfile: (username: string) =>
-    request<{ success: boolean; human?: any; error?: string }>(`/humans/profile/${username}`),
+  getProfile: (username: string, options?: { silent?: boolean }) =>
+    request<{ success: boolean; human?: any; error?: string }>(`/humans/profile/${username}`, { silent: options?.silent }),
 
   list: (params?: { limit?: number; offset?: number }) => {
     const searchParams = new URLSearchParams();
