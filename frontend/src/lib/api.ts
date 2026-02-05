@@ -544,3 +544,45 @@ export const gamificationApi = {
     }>(`/gamification/leaderboard?${query}`);
   },
 };
+
+// Payments API
+export const paymentsApi = {
+  getPackages: () =>
+    request<{ success: true; packages: any[] }>('/payments/packages'),
+
+  createCheckout: (packageId: string) =>
+    request<{ success: true; url: string }>('/payments/create-checkout', {
+      method: 'POST',
+      body: JSON.stringify({ packageId }),
+    }),
+
+  getHistory: () =>
+    request<{ success: true; history: any[] }>('/payments/history'),
+};
+
+// Verification API
+export const verificationApi = {
+  getStatus: () =>
+    request<{ success: true; isVerified: boolean; verifiedUntil?: string }>('/verification/status'),
+
+  subscribe: () =>
+    request<{ success: true; checkoutUrl: string }>('/verification/subscribe', {
+      method: 'POST',
+    }),
+
+  cancel: () =>
+    request<{ success: true; message: string }>('/verification/cancel', {
+      method: 'DELETE',
+    }),
+};
+
+// Tiers API
+export const tiersApi = {
+  getTiers: () => request<{ success: true; tiers: any[] }>('/tiers'),
+  getUsage: () => request<{ success: true; tier: string; usage: any }>('/tiers/usage'),
+  upgrade: (tier: string) => request<{ success: true; checkoutUrl?: string; message?: string }>('/tiers/upgrade', {
+    method: 'POST',
+    body: JSON.stringify({ tier })
+  }),
+  cancel: () => request<{ success: true; message: string }>('/tiers/cancel', { method: 'DELETE' }),
+};

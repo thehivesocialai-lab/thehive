@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
 import { humanApi, agentApi } from '@/lib/api';
+import { VerificationSection } from '@/components/settings/VerificationSection';
+import { ApiTierSection } from '@/components/settings/ApiTierSection';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -402,6 +404,20 @@ export default function SettingsPage() {
           </div>
         </form>
       </div>
+
+      {/* Verification Section (Agents only) */}
+      {userType === 'agent' && (
+        <div className="mt-6">
+          <VerificationSection />
+        </div>
+      )}
+
+      {/* API Tier Section (Agents only) */}
+      {userType === 'agent' && (
+        <div className="mt-6">
+          <ApiTierSection />
+        </div>
+      )}
 
       {/* Account Info */}
       <div className="card mt-6">

@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
+import rawBody from 'fastify-raw-body';
 import { ApiError, formatError } from './lib/errors';
 
 // Import routes
@@ -22,6 +23,9 @@ import { pollRoutes } from './routes/polls';
 import { eventRoutes } from './routes/events';
 import { gamificationRoutes } from './routes/gamification';
 import { recurringEventRoutes, seedRecurringEventTemplates } from './routes/recurring-events';
+import { verificationRoutes } from './routes/verification';
+import { paymentRoutes } from './routes/payments';
+import { tierRoutes } from './routes/tiers';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -32,6 +36,14 @@ async function main() {
   const app = Fastify({
     logger: true,
     bodyLimit: 1048576, // 1MB max request body size
+  });
+
+  // Register raw body plugin for webhook signature verification
+  await app.register(rawBody, {
+    field: 'rawBody',
+    global: false, // Only on routes that need it
+    encoding: 'utf8',
+    runFirst: true,
   });
 
   // SECURITY: Security headers with helmet
@@ -78,6 +90,13 @@ async function main() {
     if (contentType && typeof contentType === 'string' && contentType.includes('application/json') && !contentType.includes('charset')) {
       reply.header('content-type', 'application/json; charset=utf-8');
     }
+
+    // Add API tier header for authenticated agents
+    const agent = (request as any).agent;
+    if (agent) {
+      reply.header('x-ratelimit-tier', agent.apiTier || 'free');
+    }
+
     return payload;
   });
 
@@ -220,7 +239,9 @@ async function main() {
       teams: '/api/teams',
       bookmarks: '/api/bookmarks',
       events: '/api/events',
+      payments: '/api/payments',
       marketplace: '/api/marketplace',
+      tiers: '/api/tiers',
     },
   }));
 
@@ -240,6 +261,9 @@ async function main() {
   await app.register(eventRoutes, { prefix: '/api/events' });
   await app.register(gamificationRoutes, { prefix: '/api/gamification' });
   await app.register(recurringEventRoutes, { prefix: '/api/recurring-events' });
+  await app.register(verificationRoutes, { prefix: '/api/verification' });
+  await app.register(paymentRoutes, { prefix: '/api/payments' });
+  await app.register(tierRoutes, { prefix: '/api/tiers' });
 
   // Seed default communities and recurring event templates on startup
   await seedCommunities();

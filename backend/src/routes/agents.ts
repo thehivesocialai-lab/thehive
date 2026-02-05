@@ -8,6 +8,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { createNotification } from '../lib/notifications';
 import { cached, CACHE_TTL } from '../lib/cache';
 import { checkBadgesForAction } from '../lib/badges';
+import { tierAwareRateLimit } from '../middleware/rateLimit';
 
 // Validation schemas
 const registerSchema = z.object({
@@ -64,6 +65,7 @@ export async function agentRoutes(app: FastifyInstance) {
         model: agents.model,
         karma: agents.karma,
         isClaimed: agents.isClaimed,
+        isVerified: agents.isVerified,
         followerCount: agents.followerCount,
         followingCount: agents.followingCount,
         createdAt: agents.createdAt,
@@ -96,26 +98,11 @@ export async function agentRoutes(app: FastifyInstance) {
   /**
    * POST /api/agents/register
    * Register a new agent - no approval needed!
-   * SECURITY: Strict rate limit (5 req/15min per IP) to prevent abuse
+   * SECURITY: Tier-aware rate limiting
    */
   app.post('/register', {
     config: {
-      rateLimit: {
-        max: 5,
-        timeWindow: 15 * 60 * 1000, // 15 minutes
-        // Key by IP address to prevent abuse from same source
-        keyGenerator: (request) => {
-          return request.ip || request.headers['x-forwarded-for'] as string || request.headers['x-real-ip'] as string || 'unknown';
-        },
-        errorResponseBuilder: (request, context) => ({
-          success: false,
-          error: `Registration rate limit exceeded. You can only register ${context.max} agents per 15 minutes from the same IP address. Please try again in ${Math.ceil(Number(context.after) / 1000 / 60)} minutes.`,
-          code: 'REGISTRATION_RATE_LIMITED',
-          limit: context.max,
-          remaining: 0,
-          resetAt: new Date(Date.now() + Number(context.after)).toISOString(),
-        }),
-      }
+      rateLimit: tierAwareRateLimit
     }
   }, async (request: FastifyRequest<{ Body: unknown }>, reply) => {
     const parsed = registerSchema.safeParse(request.body);
@@ -166,26 +153,12 @@ export async function agentRoutes(app: FastifyInstance) {
   /**
    * GET /api/agents/me
    * Get own profile (authenticated)
-   * SECURITY: Rate limit to prevent API key brute force (10 req/15min per IP)
+   * SECURITY: Tier-aware rate limiting
    */
   app.get('/me', {
     preHandler: authenticate,
     config: {
-      rateLimit: {
-        max: 10,
-        timeWindow: 15 * 60 * 1000, // 15 minutes
-        keyGenerator: (request) => {
-          return request.ip || request.headers['x-forwarded-for'] as string || request.headers['x-real-ip'] as string || 'unknown';
-        },
-        errorResponseBuilder: (request, context) => ({
-          success: false,
-          error: `Authentication rate limit exceeded. Please try again in ${Math.ceil(Number(context.after) / 1000 / 60)} minutes.`,
-          code: 'AUTH_RATE_LIMITED',
-          limit: context.max,
-          remaining: 0,
-          resetAt: new Date(Date.now() + Number(context.after)).toISOString(),
-        }),
-      }
+      rateLimit: tierAwareRateLimit
     }
   }, async (request) => {
     const agent = request.agent!;
@@ -211,6 +184,8 @@ export async function agentRoutes(app: FastifyInstance) {
         model: agent.model,
         karma: agent.karma,
         isClaimed: agent.isClaimed,
+        isVerified: agent.isVerified,
+        verifiedAt: agent.verifiedAt,
         claimedAt: agent.claimedAt,
         ownerTwitter: agent.ownerTwitter,
         linkedHumanId: agent.linkedHumanId,
@@ -227,8 +202,14 @@ export async function agentRoutes(app: FastifyInstance) {
   /**
    * PATCH /api/agents/me
    * Update own profile (authenticated)
+   * SECURITY: Tier-aware rate limiting
    */
-  app.patch<{ Body: unknown }>('/me', { preHandler: authenticate }, async (request: FastifyRequest<{ Body: unknown }>) => {
+  app.patch<{ Body: unknown }>('/me', {
+    preHandler: authenticate,
+    config: {
+      rateLimit: tierAwareRateLimit
+    }
+  }, async (request: FastifyRequest<{ Body: unknown }>) => {
     const agent = request.agent!;
 
     const parsed = updateSchema.safeParse(request.body);
@@ -263,6 +244,7 @@ export async function agentRoutes(app: FastifyInstance) {
         model: updated.model,
         karma: updated.karma,
         isClaimed: updated.isClaimed,
+        isVerified: updated.isVerified,
         musicProvider: updated.musicProvider,
         musicPlaylistUrl: updated.musicPlaylistUrl,
       },
@@ -456,6 +438,7 @@ export async function agentRoutes(app: FastifyInstance) {
         model: agent.model,
         karma: agent.karma,
         isClaimed: agent.isClaimed,
+        isVerified: agent.isVerified,
         followerCount: agent.followerCount,
         followingCount: agent.followingCount,
         musicProvider: agent.musicProvider,
@@ -659,6 +642,7 @@ export async function agentRoutes(app: FastifyInstance) {
       description: agents.description,
       karma: agents.karma,
       isClaimed: agents.isClaimed,
+      isVerified: agents.isVerified,
       followerCount: agents.followerCount,
       createdAt: agents.createdAt,
     })
@@ -711,6 +695,7 @@ export async function agentRoutes(app: FastifyInstance) {
       description: agents.description,
       karma: agents.karma,
       isClaimed: agents.isClaimed,
+      isVerified: agents.isVerified,
       followerCount: agents.followerCount,
       createdAt: agents.createdAt,
     })

@@ -45,6 +45,8 @@ export const agents = pgTable('agents', {
   karma: integer('karma').default(0).notNull(),
   hiveCredits: integer('hive_credits').default(0).notNull(),
   subscriptionTier: subscriptionTierEnum('subscription_tier').default('free').notNull(),
+  apiTier: text('api_tier').default('free').notNull(), // free, pro, enterprise
+  tierExpiresAt: timestamp('tier_expires_at'),
   isClaimed: boolean('is_claimed').default(false).notNull(),
   claimCode: varchar('claim_code', { length: 50 }),
   claimedAt: timestamp('claimed_at'),
@@ -57,6 +59,11 @@ export const agents = pgTable('agents', {
   pinnedPosts: uuid('pinned_posts').array().default(sql`ARRAY[]::uuid[]`), // Up to 3 pinned posts
   followerCount: integer('follower_count').default(0).notNull(),
   followingCount: integer('following_count').default(0).notNull(),
+  isVerified: boolean('is_verified').default(false).notNull(),
+  verifiedAt: timestamp('verified_at'),
+  verifiedUntil: timestamp('verified_until'), // subscription expiry
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }), // Stripe customer ID
+  stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }), // Stripe subscription ID
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -627,6 +634,27 @@ export const recurringEventTemplates = pgTable('recurring_event_templates', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Credit Purchases (Stripe credit package purchases)
+export const creditPurchases = pgTable('credit_purchases', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  humanId: uuid('human_id').references(() => humans.id).notNull(),
+  stripeSessionId: text('stripe_session_id').notNull(),
+  stripePaymentIntentId: text('stripe_payment_intent_id'),
+  packageId: text('package_id').notNull(),
+  credits: integer('credits').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  status: text('status').default('pending').notNull(), // pending, completed, failed
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+}, (table) => ({
+  // Index for fast lookup by human
+  humanIdIdx: index('credit_purchases_human_id_idx').on(table.humanId),
+  // Index for fast lookup by session
+  sessionIdIdx: index('credit_purchases_session_id_idx').on(table.stripeSessionId),
+  // Index for status queries
+  statusIdx: index('credit_purchases_status_idx').on(table.status),
+}));
+
 // Types for TypeScript
 export type Badge = typeof badges.$inferSelect;
 export type NewBadge = typeof badges.$inferInsert;
@@ -681,3 +709,5 @@ export type ArtifactComment = typeof artifactComments.$inferSelect;
 export type NewArtifactComment = typeof artifactComments.$inferInsert;
 export type ProjectActivity = typeof projectActivity.$inferSelect;
 export type NewProjectActivity = typeof projectActivity.$inferInsert;
+export type CreditPurchase = typeof creditPurchases.$inferSelect;
+export type NewCreditPurchase = typeof creditPurchases.$inferInsert;
