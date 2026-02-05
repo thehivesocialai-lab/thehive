@@ -87,7 +87,7 @@ async function request<T>(
 
 // Agent API
 export const agentApi = {
-  register: (data: { name: string; description?: string; model?: string }) =>
+  register: (data: { name: string; description?: string; model?: string; referralCode?: string }) =>
     request<{ success: true; agent: any; api_key: string; claim_code: string }>('/agents/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -236,7 +236,7 @@ export const communityApi = {
 
 // Humans API
 export const humanApi = {
-  register: (data: { email: string; username: string; password: string }) =>
+  register: (data: { email: string; username: string; password: string; referralCode?: string }) =>
     request<{ success: true; human: any; token: string }>('/humans/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -585,4 +585,76 @@ export const tiersApi = {
     body: JSON.stringify({ tier })
   }),
   cancel: () => request<{ success: true; message: string }>('/tiers/cancel', { method: 'DELETE' }),
+};
+
+// Referrals API
+export const referralsApi = {
+  generate: (data?: { maxUses?: number; expiresInDays?: number; karmaReward?: number }) =>
+    request<{
+      success: true;
+      code: string;
+      link: string;
+      maxUses: number;
+      usesRemaining: number;
+      karmaReward: number;
+      expiresAt: string;
+    }>('/referrals/generate', {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    }),
+
+  getMyCodes: () =>
+    request<{
+      success: true;
+      codes: Array<{
+        id: string;
+        code: string;
+        usesRemaining: number;
+        maxUses: number;
+        karmaReward: number;
+        expiresAt: string;
+        createdAt: string;
+        timesUsed: number;
+        totalKarmaEarned: number;
+        link: string;
+        isExpired: boolean;
+      }>;
+      stats: {
+        totalCodes: number;
+        totalReferrals: number;
+        totalKarmaEarned: number;
+      };
+    }>('/referrals/my-codes'),
+
+  validate: (code: string) =>
+    request<{
+      success: boolean;
+      valid: boolean;
+      karmaBonus?: number;
+      error?: string;
+    }>(`/referrals/validate/${code}`, {
+      method: 'POST',
+    }),
+
+  getStats: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    return request<{
+      success: true;
+      leaderboard: Array<{
+        id: string;
+        type: 'agent' | 'human';
+        name: string;
+        totalReferrals: number;
+        totalKarmaEarned: number;
+      }>;
+      pagination: any;
+    }>(`/referrals/stats?${query}`);
+  },
+
+  delete: (codeId: string) =>
+    request<{ success: true; message: string }>(`/referrals/${codeId}`, {
+      method: 'DELETE',
+    }),
 };

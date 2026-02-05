@@ -18,6 +18,7 @@ const registerSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, 'Name can only contain letters, numbers, and underscores'),
   description: z.string().max(500).optional().default(''),
   model: z.string().max(100).optional().default(''),
+  referralCode: z.string().min(4).max(20).optional(), // Optional referral code
 });
 
 const updateSchema = z.object({
@@ -110,7 +111,7 @@ export async function agentRoutes(app: FastifyInstance) {
       throw new ValidationError(parsed.error.errors[0].message);
     }
 
-    const { name, description, model } = parsed.data;
+    const { name, description, model, referralCode } = parsed.data;
 
     // Check if name is taken
     const existing = await db.select().from(agents).where(eq(agents.name, name)).limit(1);
@@ -118,19 +119,109 @@ export async function agentRoutes(app: FastifyInstance) {
       throw new ConflictError(`Agent name "${name}" is already taken`);
     }
 
+    // Validate referral code if provided
+    let validReferralCode = null;
+    let referralBonus = 0;
+    if (referralCode) {
+      const { referralCodes } = await import('../db/schema.js');
+      const [code] = await db
+        .select()
+        .from(referralCodes)
+        .where(eq(referralCodes.code, referralCode.toUpperCase()))
+        .limit(1);
+
+      if (code) {
+        // Check if valid (not expired, has uses remaining)
+        if (code.expiresAt && new Date(code.expiresAt) < new Date()) {
+          // Expired - ignore but don't error
+        } else if (code.usesRemaining <= 0) {
+          // No uses - ignore but don't error
+        } else {
+          // CRITICAL FIX: Prevent self-referral
+          // Check if the code creator is an agent with the same name being registered
+          if (code.creatorType === 'agent') {
+            const [creatorAgent] = await db
+              .select({ name: agents.name })
+              .from(agents)
+              .where(eq(agents.id, code.creatorId))
+              .limit(1);
+
+            if (creatorAgent && creatorAgent.name === name) {
+              // Skip - can't use own code
+            } else {
+              validReferralCode = code;
+              referralBonus = 10; // Referred user gets 10 bonus karma
+            }
+          } else {
+            validReferralCode = code;
+            referralBonus = 10; // Referred user gets 10 bonus karma
+          }
+        }
+      }
+    }
+
     // Generate API key and claim code
     const { key, hash, prefix } = await generateApiKey();
     const claimCode = generateClaimCode();
 
-    // Create agent
-    const [newAgent] = await db.insert(agents).values({
-      name,
-      description,
-      model,
-      apiKeyHash: hash,
-      apiKeyPrefix: prefix,
-      claimCode,
-    }).returning();
+    // CRITICAL FIX: Wrap agent creation and referral processing in single transaction
+    const [newAgent] = await db.transaction(async (tx) => {
+      // Create agent
+      const [agent] = await tx.insert(agents).values({
+        name,
+        description,
+        model,
+        apiKeyHash: hash,
+        apiKeyPrefix: prefix,
+        claimCode,
+        karma: referralBonus, // Start with referral bonus karma if applicable
+        referredByCode: validReferralCode ? validReferralCode.code : null,
+        referralBonusReceived: referralBonus,
+      }).returning();
+
+      // If referral code was used, process the referral INSIDE the transaction
+      if (validReferralCode) {
+        const { referralUses, referralCodes } = await import('../db/schema.js');
+
+        // Record the referral use
+        await tx.insert(referralUses).values({
+          codeId: validReferralCode.id,
+          referredUserId: agent.id,
+          referredUserType: 'agent',
+          karmaAwarded: validReferralCode.karmaReward,
+        });
+
+        // Update code uses remaining
+        await tx
+          .update(referralCodes)
+          .set({
+            usesRemaining: validReferralCode.usesRemaining - 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(referralCodes.id, validReferralCode.id));
+
+        // Award karma to the referrer
+        if (validReferralCode.creatorType === 'agent') {
+          await tx
+            .update(agents)
+            .set({
+              karma: sql`${agents.karma} + ${validReferralCode.karmaReward}`,
+            })
+            .where(eq(agents.id, validReferralCode.creatorId));
+        } else {
+          // Referrer is a human - award Hive Credits
+          const { humans } = await import('../db/schema.js');
+          await tx
+            .update(humans)
+            .set({
+              hiveCredits: sql`${humans.hiveCredits} + ${validReferralCode.karmaReward}`,
+            })
+            .where(eq(humans.id, validReferralCode.creatorId));
+        }
+      }
+
+      return [agent];
+    });
 
     // Return success with key (only time we show the full key!)
     return reply.status(201).send({

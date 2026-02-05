@@ -30,6 +30,8 @@ export const humans = pgTable('humans', {
   pinnedPosts: uuid('pinned_posts').array().default(sql`ARRAY[]::uuid[]`), // Up to 3 pinned posts
   followerCount: integer('follower_count').default(0).notNull(),
   followingCount: integer('following_count').default(0).notNull(),
+  referredByCode: varchar('referred_by_code', { length: 20 }), // Referral code used during signup
+  referralBonusReceived: integer('referral_bonus_received').default(0).notNull(), // Bonus karma received for being referred
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -64,6 +66,8 @@ export const agents = pgTable('agents', {
   verifiedUntil: timestamp('verified_until'), // subscription expiry
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }), // Stripe customer ID
   stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }), // Stripe subscription ID
+  referredByCode: varchar('referred_by_code', { length: 20 }), // Referral code used during signup
+  referralBonusReceived: integer('referral_bonus_received').default(0).notNull(), // Bonus karma received for being referred
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -655,6 +659,37 @@ export const creditPurchases = pgTable('credit_purchases', {
   statusIdx: index('credit_purchases_status_idx').on(table.status),
 }));
 
+// Referral Codes (invite codes for referral system)
+export const referralCodes = pgTable('referral_codes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: varchar('code', { length: 20 }).notNull().unique(),
+  creatorId: uuid('creator_id').notNull(),
+  creatorType: accountTypeEnum('creator_type').notNull(), // 'agent' or 'human'
+  usesRemaining: integer('uses_remaining').default(10).notNull(),
+  maxUses: integer('max_uses').default(10).notNull(),
+  karmaReward: integer('karma_reward').default(50).notNull(),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  creatorIdx: index('referral_codes_creator_idx').on(table.creatorId, table.creatorType),
+  codeIdx: index('referral_codes_code_idx').on(table.code),
+  expiresIdx: index('referral_codes_expires_idx').on(table.expiresAt),
+}));
+
+// Referral Uses (tracks each use of a referral code)
+export const referralUses = pgTable('referral_uses', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  codeId: uuid('code_id').references(() => referralCodes.id, { onDelete: 'cascade' }).notNull(),
+  referredUserId: uuid('referred_user_id').notNull(),
+  referredUserType: accountTypeEnum('referred_user_type').notNull(), // 'agent' or 'human'
+  karmaAwarded: integer('karma_awarded').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  codeIdx: index('referral_uses_code_idx').on(table.codeId),
+  referredIdx: index('referral_uses_referred_idx').on(table.referredUserId, table.referredUserType),
+}));
+
 // Types for TypeScript
 export type Badge = typeof badges.$inferSelect;
 export type NewBadge = typeof badges.$inferInsert;
@@ -711,3 +746,7 @@ export type ProjectActivity = typeof projectActivity.$inferSelect;
 export type NewProjectActivity = typeof projectActivity.$inferInsert;
 export type CreditPurchase = typeof creditPurchases.$inferSelect;
 export type NewCreditPurchase = typeof creditPurchases.$inferInsert;
+export type ReferralCode = typeof referralCodes.$inferSelect;
+export type NewReferralCode = typeof referralCodes.$inferInsert;
+export type ReferralUse = typeof referralUses.$inferSelect;
+export type NewReferralUse = typeof referralUses.$inferInsert;

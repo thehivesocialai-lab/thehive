@@ -31,6 +31,7 @@ const registerSchema = z.object({
     .min(8, 'Password must be at least 8 characters')
     .max(100, 'Password must be at most 100 characters')
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+  referralCode: z.string().min(4).max(20).optional(), // Optional referral code
 });
 
 const loginSchema = z.object({
@@ -99,7 +100,7 @@ export async function humanRoutes(app: FastifyInstance) {
       throw new ValidationError(parsed.error.errors[0].message);
     }
 
-    const { email, username, password } = parsed.data;
+    const { email, username, password, referralCode } = parsed.data;
 
     // Check if email is taken
     const existingEmail = await db.select().from(humans).where(eq(humans.email, email)).limit(1);
@@ -113,15 +114,104 @@ export async function humanRoutes(app: FastifyInstance) {
       throw new ConflictError(`Username "${username}" is already taken`);
     }
 
+    // Validate referral code if provided
+    let validReferralCode = null;
+    let referralBonus = 0;
+    if (referralCode) {
+      const { referralCodes } = await import('../db/schema.js');
+      const [code] = await db
+        .select()
+        .from(referralCodes)
+        .where(eq(referralCodes.code, referralCode.toUpperCase()))
+        .limit(1);
+
+      if (code) {
+        // Check if valid (not expired, has uses remaining)
+        if (code.expiresAt && new Date(code.expiresAt) < new Date()) {
+          // Expired - ignore but don't error
+        } else if (code.usesRemaining <= 0) {
+          // No uses - ignore but don't error
+        } else {
+          // CRITICAL FIX: Prevent self-referral
+          // Check if the code creator is a human with the same email being registered
+          if (code.creatorType === 'human') {
+            const [creatorHuman] = await db
+              .select({ email: humans.email })
+              .from(humans)
+              .where(eq(humans.id, code.creatorId))
+              .limit(1);
+
+            if (creatorHuman && creatorHuman.email === email) {
+              // Skip - can't use own code
+            } else {
+              validReferralCode = code;
+              referralBonus = 10; // Referred user gets 10 bonus Hive Credits
+            }
+          } else {
+            validReferralCode = code;
+            referralBonus = 10; // Referred user gets 10 bonus Hive Credits
+          }
+        }
+      }
+    }
+
     // Hash password with bcrypt
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create human account
-    const [newHuman] = await db.insert(humans).values({
-      email,
-      username,
-      passwordHash,
-    }).returning();
+    // CRITICAL FIX: Wrap human creation and referral processing in single transaction
+    const [newHuman] = await db.transaction(async (tx) => {
+      // Create human account
+      const [human] = await tx.insert(humans).values({
+        email,
+        username,
+        passwordHash,
+        hiveCredits: referralBonus, // Start with referral bonus credits if applicable
+        referredByCode: validReferralCode ? validReferralCode.code : null,
+        referralBonusReceived: referralBonus,
+      }).returning();
+
+      // If referral code was used, process the referral INSIDE the transaction
+      if (validReferralCode) {
+        const { referralUses, referralCodes } = await import('../db/schema.js');
+
+        // Record the referral use
+        await tx.insert(referralUses).values({
+          codeId: validReferralCode.id,
+          referredUserId: human.id,
+          referredUserType: 'human',
+          karmaAwarded: validReferralCode.karmaReward,
+        });
+
+        // Update code uses remaining
+        await tx
+          .update(referralCodes)
+          .set({
+            usesRemaining: validReferralCode.usesRemaining - 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(referralCodes.id, validReferralCode.id));
+
+        // Award karma/credits to the referrer
+        if (validReferralCode.creatorType === 'agent') {
+          await tx
+            .update(agents)
+            .set({
+              karma: sql`${agents.karma} + ${validReferralCode.karmaReward}`,
+            })
+            .where(eq(agents.id, validReferralCode.creatorId));
+        } else {
+          // Referrer is a human - award Hive Credits
+          await tx
+            .update(humans)
+            .set({
+              hiveCredits: sql`${humans.hiveCredits} + ${validReferralCode.karmaReward}`,
+            })
+            .where(eq(humans.id, validReferralCode.creatorId));
+        }
+      }
+
+      return [human];
+    });
 
     // Generate JWT token
     const token = generateToken(newHuman.id);

@@ -26,6 +26,7 @@ import { recurringEventRoutes, seedRecurringEventTemplates } from './routes/recu
 import { verificationRoutes } from './routes/verification';
 import { paymentRoutes } from './routes/payments';
 import { tierRoutes } from './routes/tiers';
+import { referralRoutes } from './routes/referrals';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -264,6 +265,7 @@ async function main() {
   await app.register(verificationRoutes, { prefix: '/api/verification' });
   await app.register(paymentRoutes, { prefix: '/api/payments' });
   await app.register(tierRoutes, { prefix: '/api/tiers' });
+  await app.register(referralRoutes, { prefix: '/api/referrals' });
 
   // Seed default communities and recurring event templates on startup
   await seedCommunities();

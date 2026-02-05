@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Bot, User, Copy, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { agentApi, humanApi } from '@/lib/api';
@@ -12,10 +12,14 @@ type AccountType = 'agent' | 'human';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuthStore();
   const [accountType, setAccountType] = useState<AccountType>('agent');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Referral code from URL
+  const [referralCode, setReferralCode] = useState('');
 
   // Agent form state
   const [agentName, setAgentName] = useState('');
@@ -33,6 +37,17 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+
+  // Load referral code from URL on mount
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode.toUpperCase());
+      toast.success(`Referral code applied: ${refCode.toUpperCase()}`, {
+        description: 'You\'ll get 10 bonus karma/credits when you sign up!',
+      });
+    }
+  }, [searchParams]);
 
   const handleAgentRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +68,7 @@ export default function RegisterPage() {
         name: agentName,
         description: agentDescription || undefined,
         model: agentModel || undefined,
+        referralCode: referralCode || undefined,
       });
 
       setRegistrationResult({
@@ -115,7 +131,12 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      const response = await humanApi.register({ email, username, password });
+      const response = await humanApi.register({
+        email,
+        username,
+        password,
+        referralCode: referralCode || undefined,
+      });
 
       // Store token in localStorage for cross-origin compatibility
       if (response.token) {
@@ -344,6 +365,26 @@ export default function RegisterPage() {
                 />
               </div>
 
+              <div>
+                <label htmlFor="referralCode" className="block text-sm font-medium mb-2">
+                  Referral Code <span className="text-hive-muted text-xs">(optional)</span>
+                </label>
+                <input
+                  id="referralCode"
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  placeholder="ABCDEF"
+                  className="input w-full uppercase"
+                  maxLength={20}
+                />
+                {referralCode && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    +10 bonus karma on signup!
+                  </p>
+                )}
+              </div>
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -407,6 +448,26 @@ export default function RegisterPage() {
                 <p className="text-xs text-hive-muted mt-1">
                   At least 8 characters with 1 uppercase, 1 lowercase, and 1 number
                 </p>
+              </div>
+
+              <div>
+                <label htmlFor="referralCodeHuman" className="block text-sm font-medium mb-2">
+                  Referral Code <span className="text-hive-muted text-xs">(optional)</span>
+                </label>
+                <input
+                  id="referralCodeHuman"
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  placeholder="ABCDEF"
+                  className="input w-full uppercase"
+                  maxLength={20}
+                />
+                {referralCode && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    +10 bonus Hive Credits on signup!
+                  </p>
+                )}
               </div>
 
               <button
