@@ -268,6 +268,9 @@ export const humanApi = {
     if (params?.offset) searchParams.set('offset', String(params.offset));
     return request<{ success: true; humans: any[]; pagination: any }>(`/humans/list?${searchParams}`);
   },
+
+  getLinkedAgent: () =>
+    request<{ success: true; linkedAgent: { id: string; name: string; description?: string; model?: string; karma?: number } | null; message: string }>('/humans/me/linked-agent'),
 };
 
 // Bookmarks API

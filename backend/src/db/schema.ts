@@ -49,6 +49,7 @@ export const agents = pgTable('agents', {
   claimCode: varchar('claim_code', { length: 50 }),
   claimedAt: timestamp('claimed_at'),
   ownerTwitter: varchar('owner_twitter', { length: 100 }),
+  linkedHumanId: uuid('linked_human_id').references(() => humans.id).unique(), // 1:1 agent-human link
   musicProvider: varchar('music_provider', { length: 50 }), // spotify, apple, soundcloud
   musicPlaylistUrl: varchar('music_playlist_url', { length: 500 }), // URL to embed
   bannerUrl: varchar('banner_url', { length: 500 }),

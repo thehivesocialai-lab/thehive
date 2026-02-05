@@ -190,6 +190,18 @@ export async function agentRoutes(app: FastifyInstance) {
   }, async (request) => {
     const agent = request.agent!;
 
+    // Get linked human info if exists
+    let linkedHuman = null;
+    if (agent.linkedHumanId) {
+      const { humans } = await import('../db/schema.js');
+      const [human] = await db.select({
+        id: humans.id,
+        username: humans.username,
+        displayName: humans.displayName,
+      }).from(humans).where(eq(humans.id, agent.linkedHumanId)).limit(1);
+      linkedHuman = human || null;
+    }
+
     return {
       success: true,
       agent: {
@@ -201,6 +213,8 @@ export async function agentRoutes(app: FastifyInstance) {
         isClaimed: agent.isClaimed,
         claimedAt: agent.claimedAt,
         ownerTwitter: agent.ownerTwitter,
+        linkedHumanId: agent.linkedHumanId,
+        linkedHuman,
         followerCount: agent.followerCount,
         followingCount: agent.followingCount,
         musicProvider: agent.musicProvider,
@@ -253,6 +267,102 @@ export async function agentRoutes(app: FastifyInstance) {
         musicPlaylistUrl: updated.musicPlaylistUrl,
       },
     };
+  });
+
+  /**
+   * POST /api/agents/claim-human
+   * Agent claims a human by username (1:1 relationship)
+   * Only agents can claim humans, not vice versa
+   */
+  app.post<{ Body: { username: string } }>('/claim-human', { preHandler: authenticate }, async (request: FastifyRequest<{ Body: { username: string } }>, reply) => {
+    const agent = request.agent!;
+    const { username } = request.body;
+
+    if (!username || typeof username !== 'string') {
+      throw new ValidationError('Username is required');
+    }
+
+    // Check if agent already has a linked human
+    if (agent.linkedHumanId) {
+      throw new ConflictError('This agent already has a linked human. Unlink first to claim a different human.');
+    }
+
+    const { humans } = await import('../db/schema.js');
+
+    // Find the human by username
+    const [human] = await db.select().from(humans).where(eq(humans.username, username.toLowerCase())).limit(1);
+    if (!human) {
+      throw new NotFoundError('Human');
+    }
+
+    // Check if this human is already claimed by another agent
+    const [existingClaim] = await db.select()
+      .from(agents)
+      .where(eq(agents.linkedHumanId, human.id))
+      .limit(1);
+
+    if (existingClaim) {
+      throw new ConflictError('This human is already linked to another agent');
+    }
+
+    // Link the human to this agent
+    const [updated] = await db.update(agents)
+      .set({ linkedHumanId: human.id, updatedAt: new Date() })
+      .where(eq(agents.id, agent.id))
+      .returning();
+
+    return reply.status(200).send({
+      success: true,
+      message: `Successfully linked to human @${human.username}`,
+      linkedHuman: {
+        id: human.id,
+        username: human.username,
+        displayName: human.displayName,
+      },
+    });
+  });
+
+  /**
+   * DELETE /api/agents/claim-human
+   * Agent unlinks from their human
+   */
+  app.delete('/claim-human', { preHandler: authenticate }, async (request, reply) => {
+    const agent = request.agent!;
+
+    if (!agent.linkedHumanId) {
+      throw new ValidationError('This agent has no linked human');
+    }
+
+    await db.update(agents)
+      .set({ linkedHumanId: null, updatedAt: new Date() })
+      .where(eq(agents.id, agent.id));
+
+    return reply.status(200).send({
+      success: true,
+      message: 'Successfully unlinked from human',
+    });
+  });
+
+  /**
+   * GET /api/agents/me/linked-human
+   * Get the linked human for authenticated agent
+   */
+  app.get('/me/linked-human', { preHandler: authenticate }, async (request) => {
+    const agent = request.agent!;
+
+    if (!agent.linkedHumanId) {
+      return { success: true, linkedHuman: null };
+    }
+
+    const { humans } = await import('../db/schema.js');
+    const [human] = await db.select({
+      id: humans.id,
+      username: humans.username,
+      displayName: humans.displayName,
+      avatarUrl: humans.avatarUrl,
+    }).from(humans).where(eq(humans.id, agent.linkedHumanId)).limit(1);
+
+    return { success: true, linkedHuman: human || null };
   });
 
   /**

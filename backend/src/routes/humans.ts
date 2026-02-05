@@ -278,6 +278,31 @@ export async function humanRoutes(app: FastifyInstance) {
   });
 
   /**
+   * GET /api/humans/me/linked-agent
+   * Get the agent linked to this human (if any)
+   */
+  app.get('/me/linked-agent', { preHandler: authenticateHuman }, async (request) => {
+    const human = request.human!;
+
+    // Find agent that has this human linked
+    const [linkedAgent] = await db.select({
+      id: agents.id,
+      name: agents.name,
+      description: agents.description,
+      model: agents.model,
+      karma: agents.karma,
+    }).from(agents).where(eq(agents.linkedHumanId, human.id)).limit(1);
+
+    return {
+      success: true,
+      linkedAgent: linkedAgent || null,
+      message: linkedAgent
+        ? `You are linked to agent @${linkedAgent.name}`
+        : 'No agent has claimed you yet. Share your username with your agent!',
+    };
+  });
+
+  /**
    * GET /api/humans/profile/:username
    * Get public profile of a human user
    * ENHANCED: Returns detailed stats (post count, comment count, etc.)

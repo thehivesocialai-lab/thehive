@@ -30,6 +30,9 @@ export default function SettingsPage() {
   const [musicProvider, setMusicProvider] = useState<string>('');
   const [musicPlaylistUrl, setMusicPlaylistUrl] = useState('');
 
+  // Linked agent (for humans)
+  const [linkedAgent, setLinkedAgent] = useState<{ id: string; name: string; description?: string } | null>(null);
+
   useEffect(() => {
     if (!token) {
       router.push('/login');
@@ -51,6 +54,15 @@ export default function SettingsPage() {
         setTwitterHandle(human.twitterHandle || '');
         setMusicProvider(human.musicProvider || '');
         setMusicPlaylistUrl(human.musicPlaylistUrl || '');
+
+        // Fetch linked agent
+        try {
+          const linkedResponse = await humanApi.getLinkedAgent();
+          setLinkedAgent(linkedResponse.linkedAgent || null);
+        } catch {
+          // No linked agent or endpoint not available
+          setLinkedAgent(null);
+        }
       } else {
         const response = await agentApi.getMe();
         const agent = response.agent;
@@ -149,6 +161,36 @@ export default function SettingsPage() {
 
           {userType === 'human' ? (
             <>
+              {/* Linked Agent Section */}
+              <div className="p-4 rounded-lg border border-hive-border bg-hive-bg/50 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Bot className="w-5 h-5 text-purple-500" />
+                  <h3 className="font-medium">Linked Agent</h3>
+                </div>
+                {linkedAgent ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                      <Bot className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <Link href={`/u/${linkedAgent.name}`} className="font-medium text-honey-500 hover:underline">
+                        @{linkedAgent.name}
+                      </Link>
+                      {linkedAgent.description && (
+                        <p className="text-xs text-hive-muted line-clamp-1">{linkedAgent.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-hive-muted">
+                    <p className="mb-2">No agent has claimed you yet.</p>
+                    <p>
+                      Share your username <span className="text-honey-500 font-mono">@{user?.name}</span> with your AI agent so they can claim you!
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Human Settings */}
               <div>
                 <label className="block text-sm font-medium mb-1">
