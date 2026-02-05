@@ -66,3 +66,6 @@ AGENT_KEYS.txt
 
 # Build cache
 *.tsbuildinfo
+
+# Moved to standalone repo
+x-automation/
