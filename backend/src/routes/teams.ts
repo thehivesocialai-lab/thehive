@@ -1,9 +1,10 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { eq, and, desc } from 'drizzle-orm';
-import { db, teams, teamMembers, projects, agents, humans } from '../db';
+import { db, teams, teamMembers, projects, agents, humans, teamFiles } from '../db';
 import { authenticateUnified } from '../middleware/auth';
 import { ConflictError, NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
+import { uploadFile, validateFile, isStorageConfigured, deleteFile as deleteStorageFile } from '../lib/storage';
 
 // UUID validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -786,4 +787,241 @@ export async function teamRoutes(app: FastifyInstance) {
       message: 'Team deleted successfully',
     };
   });
+
+  // ========== TEAM FILES ROUTES ==========
+
+  /**
+   * GET /api/teams/:id/files
+   * List all files for a team
+   */
+  app.get<{ Params: { id: string } }>('/:id/files', async (request) => {
+    const { id } = request.params;
+
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid team ID format');
+    }
+
+    // Check team exists
+    const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
+    if (!team) {
+      throw new NotFoundError('Team');
+    }
+
+    // Get all team files
+    const files = await db.select()
+      .from(teamFiles)
+      .where(eq(teamFiles.teamId, id))
+      .orderBy(desc(teamFiles.createdAt));
+
+    // Get uploader details
+    const filesWithUploaders = await Promise.all(files.map(async (file) => {
+      let uploader = null;
+      if (file.uploaderType === 'agent') {
+        const [agent] = await db.select({
+          id: agents.id,
+          name: agents.name,
+        }).from(agents).where(eq(agents.id, file.uploaderId)).limit(1);
+        uploader = agent;
+      } else {
+        const [human] = await db.select({
+          id: humans.id,
+          username: humans.username,
+          displayName: humans.displayName,
+        }).from(humans).where(eq(humans.id, file.uploaderId)).limit(1);
+        uploader = human;
+      }
+      return { ...file, uploader };
+    }));
+
+    return {
+      success: true,
+      files: filesWithUploaders,
+    };
+  });
+
+  /**
+   * POST /api/teams/:id/files
+   * Upload a file to team (multipart form data)
+   */
+  app.post<{ Params: { id: string } }>('/:id/files', { preHandler: authenticateUnified }, async (request, reply) => {
+    const { id } = request.params;
+
+    if (!isValidUUID(id)) {
+      throw new ValidationError('Invalid team ID format');
+    }
+
+    if (!isStorageConfigured()) {
+      return reply.status(503).send({
+        success: false,
+        error: 'File storage is not configured',
+      });
+    }
+
+    const actorId = request.agent?.id || request.human?.id;
+    const actorType = request.userType!;
+
+    if (!actorId) {
+      throw new ValidationError('Actor ID not found');
+    }
+
+    // Check team exists
+    const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
+    if (!team) {
+      throw new NotFoundError('Team');
+    }
+
+    // Check membership
+    const [member] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, actorId),
+        eq(teamMembers.memberType, actorType)
+      ))
+      .limit(1);
+
+    if (!member) {
+      throw new ForbiddenError('You must be a team member to upload files');
+    }
+
+    // Parse multipart data
+    const parts = request.parts();
+    let name: string | undefined;
+    let description: string | undefined;
+    let fileData: { buffer: Buffer; filename: string; mimeType: string } | undefined;
+
+    for await (const part of parts) {
+      if (part.type === 'field') {
+        const value = part.value as string;
+        if (part.fieldname === 'name') name = value;
+        if (part.fieldname === 'description') description = value;
+      } else if (part.type === 'file') {
+        const buffer = await part.toBuffer();
+        fileData = {
+          buffer,
+          filename: part.filename,
+          mimeType: part.mimetype,
+        };
+      }
+    }
+
+    if (!fileData) {
+      throw new ValidationError('No file uploaded');
+    }
+
+    // Validate file
+    const validation = validateFile(fileData.mimeType, fileData.buffer.length);
+    if (!validation.valid) {
+      throw new ValidationError(validation.error!);
+    }
+
+    // Upload to R2
+    const uploadResult = await uploadFile(
+      fileData.buffer,
+      fileData.filename,
+      fileData.mimeType,
+      `teams/${id}/files`
+    );
+
+    // Detect file type
+    const fileType = detectFileType(fileData.mimeType);
+
+    // Create team file record
+    const [teamFile] = await db.insert(teamFiles).values({
+      teamId: id,
+      name: name || fileData.filename,
+      description: description || null,
+      type: fileType,
+      url: uploadResult.url,
+      key: uploadResult.key,
+      mimeType: uploadResult.mimeType,
+      size: uploadResult.size,
+      uploaderId: actorId,
+      uploaderType: actorType,
+    }).returning();
+
+    return {
+      success: true,
+      file: teamFile,
+    };
+  });
+
+  /**
+   * DELETE /api/teams/:id/files/:fileId
+   * Delete a team file (owner/admin or uploader)
+   */
+  app.delete<{ Params: { id: string; fileId: string } }>('/:id/files/:fileId', { preHandler: authenticateUnified }, async (request) => {
+    const { id, fileId } = request.params;
+
+    if (!isValidUUID(id) || !isValidUUID(fileId)) {
+      throw new ValidationError('Invalid ID format');
+    }
+
+    const actorId = request.agent?.id || request.human?.id;
+    const actorType = request.userType!;
+
+    if (!actorId) {
+      throw new ValidationError('Actor ID not found');
+    }
+
+    // Check team exists
+    const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
+    if (!team) {
+      throw new NotFoundError('Team');
+    }
+
+    // Get file
+    const [file] = await db.select().from(teamFiles)
+      .where(and(
+        eq(teamFiles.id, fileId),
+        eq(teamFiles.teamId, id)
+      ))
+      .limit(1);
+
+    if (!file) {
+      throw new NotFoundError('File');
+    }
+
+    // Check permissions: uploader or owner/admin
+    const [member] = await db.select().from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, id),
+        eq(teamMembers.memberId, actorId),
+        eq(teamMembers.memberType, actorType)
+      ))
+      .limit(1);
+
+    const isUploader = file.uploaderId === actorId && file.uploaderType === actorType;
+    const isAdminOrOwner = member && ['owner', 'admin'].includes(member.role);
+
+    if (!isUploader && !isAdminOrOwner) {
+      throw new ForbiddenError('You can only delete your own files or be an admin/owner');
+    }
+
+    // Delete from R2 if we have the key
+    if (file.key) {
+      try {
+        await deleteStorageFile(file.key);
+      } catch (error) {
+        // Log but don't fail if R2 delete fails
+        console.error('Failed to delete file from R2:', error);
+      }
+    }
+
+    // Delete from database
+    await db.delete(teamFiles).where(eq(teamFiles.id, fileId));
+
+    return {
+      success: true,
+      message: 'File deleted successfully',
+    };
+  });
+}
+
+function detectFileType(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType === 'application/pdf') return 'document';
+  if (mimeType.includes('zip') || mimeType.includes('archive')) return 'archive';
+  if (mimeType.includes('json') || mimeType.includes('javascript') || mimeType.includes('typescript')) return 'code';
+  if (mimeType.startsWith('text/')) return 'document';
+  return 'other';
 }

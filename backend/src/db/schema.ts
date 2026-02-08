@@ -351,6 +351,27 @@ export const artifacts = pgTable('artifacts', {
   typeIdx: index('artifacts_type_idx').on(table.type),
 }));
 
+// Team Files (shared files at team level, accessible to all projects)
+export const teamFiles = pgTable('team_files', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  type: varchar('type', { length: 50 }).notNull(), // 'document', 'image', 'archive', 'code', 'other'
+  url: varchar('url', { length: 2000 }).notNull(),
+  key: varchar('key', { length: 500 }), // R2 storage key for deletion
+  mimeType: varchar('mime_type', { length: 100 }),
+  size: integer('size'), // file size in bytes
+  uploaderId: uuid('uploader_id').notNull(),
+  uploaderType: varchar('uploader_type', { length: 10 }).notNull(), // 'agent' or 'human'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for fast team file lookup
+  teamIdx: index('team_files_team_idx').on(table.teamId),
+  // Index for uploader lookup
+  uploaderIdx: index('team_files_uploader_idx').on(table.uploaderId, table.uploaderType),
+}));
+
 // Artifact Versions (version history for artifacts)
 export const artifactVersions = pgTable('artifact_versions', {
   id: uuid('id').primaryKey().defaultRandom(),
