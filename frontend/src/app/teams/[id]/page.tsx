@@ -7,13 +7,15 @@ import {
   ArrowLeft, Users, Folder, Plus, Loader2,
   UserPlus, UserMinus, Clock, CheckCircle,
   Archive, PlayCircle, Bot, User, FileArchive,
-  Download, Trash2
+  Download, Trash2, Upload, FileText, Image as ImageIcon
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth';
 import { teamApi } from '@/lib/api';
 import { DocumentViewer } from '@/components/DocumentViewer';
+import { FileUpload } from '@/components/FileUpload';
+import { PdfThumbnail } from '@/components/PdfThumbnail';
 
 interface Team {
   id: string;
@@ -85,6 +87,7 @@ export default function TeamDetailPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [files, setFiles] = useState<TeamFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<TeamFile | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
@@ -408,13 +411,30 @@ export default function TeamDetailPage() {
         {/* Files & Members Column */}
         <div className="space-y-6">
           {/* Team Files */}
-          {files.length > 0 && (
-            <div className="card">
-              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
                 <FileArchive className="w-5 h-5 text-honey-500" />
                 Team Files ({files.length})
               </h2>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              {isMember && (
+                <button
+                  onClick={() => setShowUpload(true)}
+                  className="btn-secondary text-sm flex items-center gap-1"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload
+                </button>
+              )}
+            </div>
+            {files.length === 0 ? (
+              <div className="text-center py-8 text-hive-muted">
+                <FileArchive className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No files yet</p>
+                {isMember && <p className="text-sm">Upload files to share with the team</p>}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto">
                 {files.map((file) => {
                   const isPdf = file.mimeType === 'application/pdf' || file.name.endsWith('.pdf');
                   const isImage = file.mimeType?.startsWith('image/');
@@ -423,34 +443,42 @@ export default function TeamDetailPage() {
                   return (
                     <div
                       key={file.id}
-                      className={`flex items-center justify-between p-3 bg-hive-bg-secondary rounded-lg ${canPreview ? 'cursor-pointer hover:bg-hive-bg-secondary/80' : ''}`}
+                      className={`group relative bg-hive-bg-secondary rounded-lg overflow-hidden ${canPreview ? 'cursor-pointer' : ''}`}
                       onClick={() => canPreview && setSelectedFile(file)}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <FileArchive className="w-8 h-8 text-amber-500 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{file.name}</p>
-                          <p className="text-xs text-hive-muted">
-                            {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
-                            {canPreview && ' • Click to preview'}
-                          </p>
-                        </div>
+                      {/* Thumbnail */}
+                      <div className="aspect-[3/4] bg-gray-800 flex items-center justify-center">
+                        {isPdf ? (
+                          <PdfThumbnail url={file.url} className="w-full h-full" />
+                        ) : isImage ? (
+                          <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <FileText className="w-12 h-12 text-gray-500" />
+                        )}
                       </div>
+                      {/* Info overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <p className="text-xs font-medium truncate text-white">{file.name}</p>
+                        <p className="text-[10px] text-gray-300">
+                          {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : ''}
+                        </p>
+                      </div>
+                      {/* Download button */}
                       <a
                         href={file.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="btn-secondary text-sm flex items-center gap-1 flex-shrink-0"
+                        className="absolute top-2 right-2 p-1.5 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition"
                       >
-                        <Download className="w-4 h-4" />
+                        <Download className="w-4 h-4 text-white" />
                       </a>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Members */}
           <div className="card">
@@ -508,6 +536,15 @@ export default function TeamDetailPage() {
         <DocumentViewer
           file={selectedFile}
           onClose={() => setSelectedFile(null)}
+        />
+      )}
+
+      {/* File Upload Modal */}
+      {showUpload && (
+        <FileUpload
+          teamId={teamId}
+          onUploadComplete={loadTeam}
+          onClose={() => setShowUpload(false)}
         />
       )}
     </div>
