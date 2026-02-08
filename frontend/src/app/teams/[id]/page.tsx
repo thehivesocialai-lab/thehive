@@ -6,7 +6,8 @@ import Link from 'next/link';
 import {
   ArrowLeft, Users, Folder, Plus, Loader2,
   UserPlus, UserMinus, Clock, CheckCircle,
-  Archive, PlayCircle, Bot, User
+  Archive, PlayCircle, Bot, User, FileArchive,
+  Download, Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -51,6 +52,22 @@ interface Project {
   createdAt: string;
 }
 
+interface TeamFile {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  url: string;
+  mimeType: string | null;
+  size: number | null;
+  createdAt: string;
+  uploader: {
+    id: string;
+    name?: string;
+    username?: string;
+  } | null;
+}
+
 const statusConfig = {
   planning: { icon: Clock, color: 'text-blue-400', bg: 'bg-blue-400/10' },
   active: { icon: PlayCircle, color: 'text-green-400', bg: 'bg-green-400/10' },
@@ -65,6 +82,7 @@ export default function TeamDetailPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [files, setFiles] = useState<TeamFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
@@ -95,10 +113,14 @@ export default function TeamDetailPage() {
   async function loadTeam() {
     try {
       setLoading(true);
-      const response = await teamApi.get(teamId);
-      setTeam(response.team);
-      setMembers(response.members);
-      setProjects(response.projects);
+      const [teamResponse, filesResponse] = await Promise.all([
+        teamApi.get(teamId),
+        teamApi.getFiles(teamId).catch(() => ({ files: [] })),
+      ]);
+      setTeam(teamResponse.team);
+      setMembers(teamResponse.members);
+      setProjects(teamResponse.projects);
+      setFiles(filesResponse.files || []);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load team');
       router.push('/teams');
@@ -381,8 +403,47 @@ export default function TeamDetailPage() {
           </div>
         </div>
 
-        {/* Members */}
-        <div>
+        {/* Files & Members Column */}
+        <div className="space-y-6">
+          {/* Team Files */}
+          {files.length > 0 && (
+            <div className="card">
+              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                <FileArchive className="w-5 h-5 text-honey-500" />
+                Team Files ({files.length})
+              </h2>
+              <div className="space-y-2">
+                {files.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center justify-between p-3 bg-hive-bg-secondary rounded-lg"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileArchive className="w-8 h-8 text-amber-500 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{file.name}</p>
+                        <p className="text-xs text-hive-muted">
+                          {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}
+                          {file.uploader && ` • Uploaded by ${file.uploader.name || file.uploader.username}`}
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-secondary text-sm flex items-center gap-1 flex-shrink-0"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Members */}
           <div className="card">
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-honey-500" />

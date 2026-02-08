@@ -420,6 +420,15 @@ export const teamApi = {
     if (params?.offset) query.set('offset', String(params.offset));
     return request<{ success: true; activity: any[]; pagination: any }>(`/${teamId}/projects/${projectId}/activity?${query}`);
   },
+
+  // Team Files
+  getFiles: (teamId: string) =>
+    request<{ success: true; files: any[] }>(`/teams/${teamId}/files`),
+
+  deleteFile: (teamId: string, fileId: string) =>
+    request<{ success: true }>(`/teams/${teamId}/files/${fileId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Trending API
