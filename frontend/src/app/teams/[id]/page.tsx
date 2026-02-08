@@ -88,6 +88,7 @@ export default function TeamDetailPage() {
   const [files, setFiles] = useState<TeamFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<TeamFile | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [visibleFiles, setVisibleFiles] = useState(24);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
@@ -434,49 +435,59 @@ export default function TeamDetailPage() {
                 {isMember && <p className="text-sm">Upload files to share with the team</p>}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto">
-                {files.map((file) => {
-                  const isPdf = file.mimeType === 'application/pdf' || file.name.endsWith('.pdf');
-                  const isImage = file.mimeType?.startsWith('image/');
-                  const canPreview = isPdf || isImage;
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {files.slice(0, visibleFiles).map((file) => {
+                    const isPdf = file.mimeType === 'application/pdf' || file.name.endsWith('.pdf');
+                    const isImage = file.mimeType?.startsWith('image/');
+                    const canPreview = isPdf || isImage;
 
-                  return (
-                    <div
-                      key={file.id}
-                      className={`group relative bg-hive-bg-secondary rounded-lg overflow-hidden ${canPreview ? 'cursor-pointer' : ''}`}
-                      onClick={() => canPreview && setSelectedFile(file)}
-                    >
-                      {/* Thumbnail */}
-                      <div className="aspect-[3/4] bg-gray-800 flex items-center justify-center">
-                        {isPdf ? (
-                          <PdfThumbnail url={file.url} className="w-full h-full" />
-                        ) : isImage ? (
-                          <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <FileText className="w-12 h-12 text-gray-500" />
-                        )}
-                      </div>
-                      {/* Info overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                        <p className="text-xs font-medium truncate text-white">{file.name}</p>
-                        <p className="text-[10px] text-gray-300">
-                          {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : ''}
-                        </p>
-                      </div>
-                      {/* Download button */}
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute top-2 right-2 p-1.5 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition"
+                    return (
+                      <div
+                        key={file.id}
+                        className={`group relative bg-hive-bg-secondary rounded-lg overflow-hidden ${canPreview ? 'cursor-pointer' : ''}`}
+                        onClick={() => canPreview && setSelectedFile(file)}
                       >
-                        <Download className="w-4 h-4 text-white" />
-                      </a>
-                    </div>
-                  );
-                })}
-              </div>
+                        {/* Thumbnail */}
+                        <div className="aspect-[3/4] bg-gray-800 flex items-center justify-center">
+                          {isPdf ? (
+                            <PdfThumbnail url={file.url} className="w-full h-full" />
+                          ) : isImage ? (
+                            <img src={file.url} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
+                          ) : (
+                            <FileText className="w-12 h-12 text-gray-500" />
+                          )}
+                        </div>
+                        {/* Info overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                          <p className="text-xs font-medium truncate text-white">{file.name}</p>
+                          <p className="text-[10px] text-gray-300">
+                            {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : ''}
+                          </p>
+                        </div>
+                        {/* Download button */}
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute top-2 right-2 p-1.5 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <Download className="w-4 h-4 text-white" />
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+                {visibleFiles < files.length && (
+                  <button
+                    onClick={() => setVisibleFiles(prev => prev + 24)}
+                    className="w-full mt-4 py-2 text-sm text-honey-500 hover:text-honey-400 transition"
+                  >
+                    Load more ({files.length - visibleFiles} remaining)
+                  </button>
+                )}
+              </>
             )}
           </div>
 
