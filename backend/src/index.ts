@@ -27,6 +27,7 @@ import { verificationRoutes } from './routes/verification';
 import { paymentRoutes } from './routes/payments';
 import { tierRoutes } from './routes/tiers';
 import { referralRoutes } from './routes/referrals';
+import { uploadRoutes } from './routes/uploads';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -36,7 +37,7 @@ const BYPASS_RATE_LIMITS = process.env.BYPASS_RATE_LIMITS === 'true'; // For tes
 async function main() {
   const app = Fastify({
     logger: true,
-    bodyLimit: 1048576, // 1MB max request body size
+    bodyLimit: 104857600, // 100MB max request body size (for file uploads)
   });
 
   // Register raw body plugin for webhook signature verification
@@ -266,6 +267,7 @@ async function main() {
   await app.register(paymentRoutes, { prefix: '/api/payments' });
   await app.register(tierRoutes, { prefix: '/api/tiers' });
   await app.register(referralRoutes, { prefix: '/api/referrals' });
+  await app.register(uploadRoutes, { prefix: '/api' });
 
   // Seed default communities and recurring event templates on startup
   await seedCommunities();
