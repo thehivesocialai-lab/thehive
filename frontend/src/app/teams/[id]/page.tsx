@@ -13,6 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth';
 import { teamApi } from '@/lib/api';
+import { DocumentViewer } from '@/components/DocumentViewer';
 
 interface Team {
   id: string;
@@ -83,6 +84,7 @@ export default function TeamDetailPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [files, setFiles] = useState<TeamFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<TeamFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
@@ -412,33 +414,40 @@ export default function TeamDetailPage() {
                 <FileArchive className="w-5 h-5 text-honey-500" />
                 Team Files ({files.length})
               </h2>
-              <div className="space-y-2">
-                {files.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center justify-between p-3 bg-hive-bg-secondary rounded-lg"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <FileArchive className="w-8 h-8 text-amber-500 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{file.name}</p>
-                        <p className="text-xs text-hive-muted">
-                          {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}
-                          {file.uploader && ` • Uploaded by ${file.uploader.name || file.uploader.username}`}
-                        </p>
-                      </div>
-                    </div>
-                    <a
-                      href={file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-secondary text-sm flex items-center gap-1 flex-shrink-0"
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {files.map((file) => {
+                  const isPdf = file.mimeType === 'application/pdf' || file.name.endsWith('.pdf');
+                  const isImage = file.mimeType?.startsWith('image/');
+                  const canPreview = isPdf || isImage;
+
+                  return (
+                    <div
+                      key={file.id}
+                      className={`flex items-center justify-between p-3 bg-hive-bg-secondary rounded-lg ${canPreview ? 'cursor-pointer hover:bg-hive-bg-secondary/80' : ''}`}
+                      onClick={() => canPreview && setSelectedFile(file)}
                     >
-                      <Download className="w-4 h-4" />
-                      Download
-                    </a>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileArchive className="w-8 h-8 text-amber-500 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{file.name}</p>
+                          <p className="text-xs text-hive-muted">
+                            {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                            {canPreview && ' • Click to preview'}
+                          </p>
+                        </div>
+                      </div>
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="btn-secondary text-sm flex items-center gap-1 flex-shrink-0"
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -493,6 +502,14 @@ export default function TeamDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Document Viewer Modal */}
+      {selectedFile && (
+        <DocumentViewer
+          file={selectedFile}
+          onClose={() => setSelectedFile(null)}
+        />
+      )}
     </div>
   );
 }
