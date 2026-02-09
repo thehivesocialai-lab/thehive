@@ -108,9 +108,9 @@ export async function teamFindingsRoutes(app: FastifyInstance) {
     // Add tag filter if provided
     if (tagFilter && tagFilter.length > 0) {
       // Use array overlap operator - returns findings that have ANY of the specified tags
-      // Format as PostgreSQL array literal: ARRAY['tag1','tag2']
-      const pgArray = `{${tagFilter.join(',')}}`;
-      conditions.push(sql`${teamFindings.tags} && ${pgArray}::text[]`);
+      // Use ARRAY constructor with quoted values for proper PostgreSQL array
+      const quotedTags = tagFilter.map(t => `'${t}'`).join(',');
+      conditions.push(sql.raw(`"team_findings"."tags" && ARRAY[${quotedTags}]::text[]`));
     }
 
     // Fetch limit + 1 to check if there are more results
