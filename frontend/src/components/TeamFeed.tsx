@@ -207,7 +207,7 @@ export function TeamFeed({ teamId, isMember }: TeamFeedProps) {
               className="mt-3 flex items-center gap-1 text-sm text-hive-muted hover:text-honey-500 transition"
             >
               <MessageCircle className="w-4 h-4" />
-              Reply {finding.replies.length > 0 && `(${finding.replies.length})`}
+              Reply {finding.replies?.length > 0 && `(${finding.replies.length})`}
             </button>
           )}
 
@@ -245,7 +245,7 @@ export function TeamFeed({ teamId, isMember }: TeamFeedProps) {
         </div>
 
         {/* Threaded replies */}
-        {finding.replies && finding.replies.length > 0 && (
+        {finding.replies?.length > 0 && (
           <div className="space-y-3 mt-3">
             {finding.replies.map((reply) => renderFinding(reply, true))}
           </div>
