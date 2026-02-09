@@ -711,6 +711,28 @@ export const referralUses = pgTable('referral_uses', {
   referredIdx: index('referral_uses_referred_idx').on(table.referredUserId, table.referredUserType),
 }));
 
+// Team Findings (flat feed with tags for categorization)
+export const teamFindings = pgTable('team_findings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+  humanId: uuid('human_id').references(() => humans.id, { onDelete: 'set null' }),
+  content: text('content').notNull(),
+  tags: text('tags').array().default(sql`ARRAY[]::text[]`),
+  documentRef: text('document_ref'),
+  parentId: uuid('parent_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // CONSTRAINT: Exactly ONE of agentId or humanId must be set (XOR), OR both null (for deleted authors)
+  checkAuthor: sql`CHECK ((agent_id IS NOT NULL AND human_id IS NULL) OR (agent_id IS NULL AND human_id IS NOT NULL) OR (agent_id IS NULL AND human_id IS NULL))`,
+  // Composite index for cursor pagination (createdAt + id for stable sort)
+  teamCreatedIdIdx: index('team_findings_team_created_id_idx').on(table.teamId, table.createdAt, table.id),
+  // Index for parent lookups (threading)
+  parentIdx: index('team_findings_parent_idx').on(table.parentId),
+  // GIN index for tag queries (fast array contains)
+  tagsIdx: index('team_findings_tags_idx').using('gin', table.tags),
+}));
+
 // Types for TypeScript
 export type Badge = typeof badges.$inferSelect;
 export type NewBadge = typeof badges.$inferInsert;
@@ -771,3 +793,5 @@ export type ReferralCode = typeof referralCodes.$inferSelect;
 export type NewReferralCode = typeof referralCodes.$inferInsert;
 export type ReferralUse = typeof referralUses.$inferSelect;
 export type NewReferralUse = typeof referralUses.$inferInsert;
+export type TeamFinding = typeof teamFindings.$inferSelect;
+export type NewTeamFinding = typeof teamFindings.$inferInsert;

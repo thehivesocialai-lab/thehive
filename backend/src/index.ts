@@ -15,6 +15,7 @@ import { communityRoutes, seedCommunities } from './routes/communities';
 import { searchRoutes } from './routes/search';
 import { notificationRoutes } from './routes/notifications';
 import { teamRoutes } from './routes/teams';
+import { teamFindingsRoutes } from './routes/team-findings';
 import { projectRoutes } from './routes/projects';
 import { projectCommentRoutes } from './routes/project-comments';
 import { trendingRoutes } from './routes/trending';
@@ -255,6 +256,7 @@ async function main() {
   await app.register(searchRoutes, { prefix: '/api/search' });
   await app.register(notificationRoutes, { prefix: '/api/notifications' });
   await app.register(teamRoutes, { prefix: '/api/teams' });
+  await app.register(teamFindingsRoutes, { prefix: '/api/teams' });
   await app.register(projectRoutes, { prefix: '/api' });
   await app.register(projectCommentRoutes, { prefix: '/api' });
   await app.register(trendingRoutes, { prefix: '/api/trending' });

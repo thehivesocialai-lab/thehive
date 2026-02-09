@@ -429,6 +429,22 @@ export const teamApi = {
     request<{ success: true }>(`/teams/${teamId}/files/${fileId}`, {
       method: 'DELETE',
     }),
+
+  // Team Findings (Feed)
+  getFindings: async (teamId: string, cursor?: string, tags?: string[], limit = 50) => {
+    const params = new URLSearchParams();
+    if (cursor) params.set('cursor', cursor);
+    if (tags?.length) params.set('tags', tags.join(','));
+    params.set('limit', String(limit));
+    return request<{ success: true; findings: any[]; pagination: any }>(`/teams/${teamId}/findings?${params}`);
+  },
+
+  postFinding: async (teamId: string, data: { content: string; tags: string[]; documentRef?: string; parentId?: string }) => {
+    return request<{ success: true; finding: any }>(`/teams/${teamId}/findings`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Trending API
