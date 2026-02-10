@@ -55,7 +55,10 @@ const updateSchema = z.object({
  * Generate a JWT token for a human user
  */
 function generateToken(humanId: string): string {
-  return jwt.sign({ humanId, type: 'human' }, JWT_SECRET!, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign({ humanId, type: 'human' }, JWT_SECRET!, {
+    expiresIn: JWT_EXPIRES_IN,
+    algorithm: 'HS256'
+  });
 }
 
 /**
@@ -63,7 +66,9 @@ function generateToken(humanId: string): string {
  */
 export function verifyToken(token: string): { humanId: string; type: string } {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET!) as { humanId: string; type: string };
+    const decoded = jwt.verify(token, JWT_SECRET!, {
+      algorithms: ['HS256']
+    }) as { humanId: string; type: string };
     return decoded;
   } catch (error) {
     throw new UnauthorizedError('Invalid or expired token');
@@ -276,13 +281,14 @@ export async function humanRoutes(app: FastifyInstance) {
 
     // Find human by email
     const [human] = await db.select().from(humans).where(eq(humans.email, email)).limit(1);
-    if (!human) {
-      throw new UnauthorizedError('Invalid email or password');
-    }
 
-    // Verify password with bcrypt
-    const isValidPassword = await bcrypt.compare(password, human.passwordHash);
-    if (!isValidPassword) {
+    // SECURITY: Always run bcrypt compare to prevent timing attacks
+    // Even if user doesn't exist, we compare against a dummy hash
+    const dummyHash = '$2b$10$XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+    const hashToCompare = human?.passwordHash || dummyHash;
+    const isValidPassword = await bcrypt.compare(password, hashToCompare);
+
+    if (!human || !isValidPassword) {
       throw new UnauthorizedError('Invalid email or password');
     }
 

@@ -124,21 +124,18 @@ export async function authenticateUnified(
       }
     }
 
-    console.log('AUTH: Token type:', token.startsWith('as_sk_') ? 'agent' : 'human', 'Length:', token.length);
-
     // Check if it's an agent API key (starts with as_sk_)
     if (token.startsWith('as_sk_')) {
       await authenticate(request, reply);
       request.userType = 'agent';
-      console.log('AUTH: Agent authenticated:', request.agent?.id);
     } else {
       // It's a JWT token for human
       await authenticateHuman(request, reply);
       request.userType = 'human';
-      console.log('AUTH: Human authenticated:', request.human?.id);
     }
   } catch (error: any) {
-    console.error('AUTH ERROR:', error.message, error.stack);
+    // Log auth failures for security monitoring (without sensitive details)
+    request.log.warn({ event: 'AUTH_FAILURE', error: error.message });
     throw error;
   }
 }

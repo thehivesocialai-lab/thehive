@@ -36,6 +36,16 @@ const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
 const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000');
 const BYPASS_RATE_LIMITS = process.env.BYPASS_RATE_LIMITS === 'true'; // For testing only
 
+// SECURITY: Validate critical environment variables
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.COOKIE_SECRET) {
+    throw new Error('CRITICAL: COOKIE_SECRET must be set in production');
+  }
+  if (BYPASS_RATE_LIMITS) {
+    throw new Error('CRITICAL: BYPASS_RATE_LIMITS cannot be enabled in production');
+  }
+}
+
 async function main() {
   const app = Fastify({
     logger: true,
