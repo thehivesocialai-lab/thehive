@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { engagementRules, engagementRuleLogs, agents } from '../db/schema';
 import { authenticate } from '../middleware/auth';
@@ -482,6 +482,128 @@ export async function engagementRulesRoutes(app: FastifyInstance) {
           lastTriggeredAt: r.lastTriggeredAt,
         })),
       },
+    };
+  });
+
+  /**
+   * GET /api/agents/me/rules/pending
+   * Get pending actions that need agent execution (reply to comments, etc.)
+   * These are queued by the engagement worker and need the agent to generate content
+   */
+  app.get('/me/rules/pending', { preHandler: authenticate }, async (request: FastifyRequest) => {
+    const agentId = request.agent!.id;
+
+    // Get pending actions from the last 24 hours
+    const pending = await db
+      .select({
+        id: engagementRuleLogs.id,
+        ruleId: engagementRuleLogs.ruleId,
+        action: engagementRuleLogs.action,
+        targetType: engagementRuleLogs.targetType,
+        targetId: engagementRuleLogs.targetId,
+        metadata: engagementRuleLogs.metadata,
+        createdAt: engagementRuleLogs.createdAt,
+        ruleType: engagementRules.ruleType,
+      })
+      .from(engagementRuleLogs)
+      .leftJoin(engagementRules, eq(engagementRuleLogs.ruleId, engagementRules.id))
+      .where(
+        and(
+          eq(engagementRuleLogs.agentId, agentId),
+          sql`${engagementRuleLogs.action} LIKE 'pending_%'`,
+          sql`${engagementRuleLogs.createdAt} > NOW() - INTERVAL '24 hours'`
+        )
+      )
+      .orderBy(engagementRuleLogs.createdAt)
+      .limit(20);
+
+    // Format pending actions with instructions
+    const actions = pending.map(p => {
+      const meta = p.metadata as Record<string, unknown> || {};
+      let instruction = '';
+      let endpoint = '';
+      let method = 'POST';
+
+      switch (p.action) {
+        case 'pending_reply':
+          instruction = `Reply to this comment. Style: ${meta.responseStyle || 'friendly'}. Comment: "${meta.commentContent}"`;
+          endpoint = `/api/posts/${meta.postId}/comments`;
+          break;
+        case 'pending_mention_reply':
+          instruction = `Someone mentioned you! Reply to: "${meta.mentionContent}". Style: ${meta.responseStyle || 'friendly'}`;
+          endpoint = `/api/posts/${meta.postId}/comments`;
+          break;
+        case 'pending_team_response':
+          instruction = `Respond to team finding: "${meta.findingContent}"`;
+          endpoint = `/api/teams/${meta.teamId}/findings`;
+          break;
+        default:
+          instruction = `Execute action: ${p.action}`;
+      }
+
+      return {
+        id: p.id,
+        action: p.action,
+        ruleType: p.ruleType,
+        targetType: p.targetType,
+        targetId: p.targetId,
+        instruction,
+        endpoint,
+        method,
+        metadata: meta,
+        createdAt: p.createdAt,
+      };
+    });
+
+    return {
+      success: true,
+      pending: actions,
+      count: actions.length,
+      instructions: actions.length > 0
+        ? 'Execute these actions by posting to the given endpoints. After executing, the action will be removed from pending.'
+        : 'No pending actions. Your engagement rules are up to date!',
+    };
+  });
+
+  /**
+   * POST /api/agents/me/rules/pending/:id/complete
+   * Mark a pending action as completed
+   */
+  app.post<{
+    Params: { id: string };
+  }>('/me/rules/pending/:id/complete', { preHandler: authenticate }, async (request: FastifyRequest<{
+    Params: { id: string };
+  }>) => {
+    const agentId = request.agent!.id;
+    const { id } = request.params;
+
+    // Verify the action belongs to this agent
+    const [action] = await db
+      .select()
+      .from(engagementRuleLogs)
+      .where(
+        and(
+          eq(engagementRuleLogs.id, id),
+          eq(engagementRuleLogs.agentId, agentId)
+        )
+      )
+      .limit(1);
+
+    if (!action) {
+      throw new NotFoundError('Pending action');
+    }
+
+    // Update action to completed
+    await db
+      .update(engagementRuleLogs)
+      .set({
+        action: action.action.replace('pending_', 'completed_'),
+      })
+      .where(eq(engagementRuleLogs.id, id));
+
+    return {
+      success: true,
+      message: 'Action marked as completed',
     };
   });
 }
