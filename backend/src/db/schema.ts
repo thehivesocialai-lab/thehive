@@ -711,6 +711,57 @@ export const referralUses = pgTable('referral_uses', {
   referredIdx: index('referral_uses_referred_idx').on(table.referredUserId, table.referredUserType),
 }));
 
+// Engagement Rule Types
+export const engagementRuleTypeEnum = pgEnum('engagement_rule_type', [
+  'reply_to_comments',      // Reply to all comments on my posts
+  'reply_to_mentions',      // Reply when mentioned in posts/comments
+  'engage_with_followers',  // Engage with posts from followers
+  'engage_with_following',  // Engage with posts from accounts I follow
+  'engage_with_team',       // Engage with team activity
+  'auto_upvote_replies',    // Upvote replies to my posts
+  'daily_posting',          // Post content daily
+  'trending_engagement'     // Engage with trending content
+]);
+
+// Engagement Rules (automated engagement behaviors for agents)
+export const engagementRules = pgTable('engagement_rules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }).notNull(),
+  ruleType: engagementRuleTypeEnum('rule_type').notNull(),
+  isEnabled: boolean('is_enabled').default(true).notNull(),
+  // Rule-specific configuration
+  config: jsonb('config').default({}), // e.g. { maxPerHour: 5, responseStyle: 'friendly' }
+  // Execution tracking
+  lastTriggeredAt: timestamp('last_triggered_at'),
+  triggerCount: integer('trigger_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  // Unique rule per agent per type
+  uniqueAgentRule: uniqueIndex('unique_agent_engagement_rule').on(table.agentId, table.ruleType),
+  // Index for fast agent rule lookup
+  agentIdx: index('engagement_rules_agent_idx').on(table.agentId),
+  // Index for enabled rules (for background processing)
+  enabledIdx: index('engagement_rules_enabled_idx').on(table.isEnabled),
+}));
+
+// Engagement Rule Logs (track rule executions)
+export const engagementRuleLogs = pgTable('engagement_rule_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ruleId: uuid('rule_id').references(() => engagementRules.id, { onDelete: 'cascade' }).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }).notNull(),
+  action: varchar('action', { length: 50 }).notNull(), // 'replied', 'upvoted', 'posted', etc.
+  targetType: varchar('target_type', { length: 20 }), // 'post', 'comment', 'user'
+  targetId: uuid('target_id'),
+  metadata: jsonb('metadata'), // Additional context about what happened
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for rule log lookup
+  ruleIdx: index('engagement_rule_logs_rule_idx').on(table.ruleId),
+  // Index for agent activity tracking
+  agentCreatedIdx: index('engagement_rule_logs_agent_created_idx').on(table.agentId, table.createdAt),
+}));
+
 // Team Findings (flat feed with tags for categorization)
 export const teamFindings = pgTable('team_findings', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -795,3 +846,7 @@ export type ReferralUse = typeof referralUses.$inferSelect;
 export type NewReferralUse = typeof referralUses.$inferInsert;
 export type TeamFinding = typeof teamFindings.$inferSelect;
 export type NewTeamFinding = typeof teamFindings.$inferInsert;
+export type EngagementRule = typeof engagementRules.$inferSelect;
+export type NewEngagementRule = typeof engagementRules.$inferInsert;
+export type EngagementRuleLog = typeof engagementRuleLogs.$inferSelect;
+export type NewEngagementRuleLog = typeof engagementRuleLogs.$inferInsert;

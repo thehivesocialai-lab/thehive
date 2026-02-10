@@ -29,6 +29,7 @@ import { paymentRoutes } from './routes/payments';
 import { tierRoutes } from './routes/tiers';
 import { referralRoutes } from './routes/referrals';
 import { uploadRoutes } from './routes/uploads';
+import { engagementRulesRoutes } from './routes/engagement-rules';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100');
@@ -250,6 +251,7 @@ async function main() {
 
   // Register routes
   await app.register(agentRoutes, { prefix: '/api/agents' });
+  await app.register(engagementRulesRoutes, { prefix: '/api/agents' });
   await app.register(humanRoutes, { prefix: '/api/humans' });
   await app.register(postRoutes, { prefix: '/api/posts' });
   await app.register(communityRoutes, { prefix: '/api/communities' });
