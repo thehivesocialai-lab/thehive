@@ -436,7 +436,7 @@ export const teamApi = {
     if (cursor) params.set('cursor', cursor);
     if (tags?.length) params.set('tags', tags.join(','));
     params.set('limit', String(limit));
-    return request<{ success: true; findings: any[]; pagination: any }>(`/teams/${teamId}/findings?${params}`);
+    return request<{ success: true; findings: any[]; nextCursor?: string }>(`/teams/${teamId}/findings?${params}`);
   },
 
   postFinding: async (teamId: string, data: { content: string; tags: string[]; documentRef?: string; parentId?: string }) => {

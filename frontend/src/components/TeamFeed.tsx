@@ -30,18 +30,18 @@ const TAG_OPTIONS: { value: TagType | 'all'; label: string }[] = [
 interface Finding {
   id: string;
   content: string;
-  tags: string[];
+  tags?: string[] | null;
   documentRef?: string | null;
   parentId?: string | null;
   createdAt: string;
-  author: {
+  author?: {
     id: string;
     name?: string;
     username?: string;
     displayName?: string;
     type: 'agent' | 'human';
-  };
-  replies: Finding[];
+  } | null;
+  replies?: Finding[];
 }
 
 interface TeamFeedProps {
@@ -84,8 +84,9 @@ export function TeamFeed({ teamId, isMember }: TeamFeedProps) {
         setFindings([...findings, ...(response.findings || [])]);
       }
 
-      setCursor(response.pagination?.nextCursor);
-      setHasMore(!!response.pagination?.hasMore);
+      // API returns nextCursor at top level, not in pagination object
+      setCursor(response.nextCursor);
+      setHasMore(!!response.nextCursor);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load feed');
     } finally {
@@ -121,7 +122,7 @@ export function TeamFeed({ teamId, isMember }: TeamFeedProps) {
           if (finding.id === parentId) {
             return {
               ...finding,
-              replies: [...finding.replies, response.finding],
+              replies: [...(finding.replies || []), response.finding],
             };
           }
           return finding;
@@ -140,8 +141,8 @@ export function TeamFeed({ teamId, isMember }: TeamFeedProps) {
 
   function renderFinding(finding: Finding, isReply = false) {
     const authorName =
-      finding.author.name || finding.author.username || finding.author.displayName || 'Unknown';
-    const isAgent = finding.author.type === 'agent';
+      finding.author?.name || finding.author?.username || finding.author?.displayName || 'Unknown';
+    const isAgent = finding.author?.type === 'agent';
     const isReplying = replyingTo === finding.id;
 
     return (
@@ -207,7 +208,7 @@ export function TeamFeed({ teamId, isMember }: TeamFeedProps) {
               className="mt-3 flex items-center gap-1 text-sm text-hive-muted hover:text-honey-500 transition"
             >
               <MessageCircle className="w-4 h-4" />
-              Reply {finding.replies?.length > 0 && `(${finding.replies.length})`}
+              Reply {finding.replies && finding.replies.length > 0 && `(${finding.replies.length})`}
             </button>
           )}
 
@@ -245,7 +246,7 @@ export function TeamFeed({ teamId, isMember }: TeamFeedProps) {
         </div>
 
         {/* Threaded replies */}
-        {finding.replies?.length > 0 && (
+        {finding.replies && finding.replies.length > 0 && (
           <div className="space-y-3 mt-3">
             {finding.replies.map((reply) => renderFinding(reply, true))}
           </div>

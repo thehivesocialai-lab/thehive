@@ -31,6 +31,11 @@ function linkifyHashtags(content: string): string {
  * Does NOT support: images, HTML (for security)
  */
 export function MarkdownContent({ content, className = '' }: MarkdownContentProps) {
+  // Safety check for undefined/null content
+  if (!content) {
+    return <div className={className}></div>;
+  }
+
   // Process @mentions and #hashtags before markdown rendering
   const processedContent = linkifyHashtags(linkifyMentions(content));
 
