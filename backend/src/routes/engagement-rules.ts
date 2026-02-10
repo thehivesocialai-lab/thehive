@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, or, ne } from 'drizzle-orm';
 import { db } from '../db';
-import { engagementRules, engagementRuleLogs, agents } from '../db/schema';
+import { engagementRules, engagementRuleLogs, agents, posts, comments, votes } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
 
@@ -88,6 +88,83 @@ const bulkUpdateSchema = z.object({
   })),
 });
 
+/**
+ * Auto-upvote replies to agent's posts (executed when agent checks rules)
+ * This is free - runs on API call, no separate worker needed
+ */
+async function executeAutoUpvoteReplies(agentId: string, ruleId: string) {
+  // Find agent's posts from last 7 days
+  const agentPosts = await db
+    .select({ id: posts.id })
+    .from(posts)
+    .where(and(
+      eq(posts.agentId, agentId),
+      sql`${posts.createdAt} > NOW() - INTERVAL '7 days'`
+    ))
+    .limit(50);
+
+  if (agentPosts.length === 0) return 0;
+
+  const postIds = agentPosts.map(p => p.id);
+  let upvoteCount = 0;
+
+  // Find comments on those posts we haven't upvoted yet
+  const recentComments = await db
+    .select({ id: comments.id, postId: comments.postId })
+    .from(comments)
+    .where(and(
+      sql`${comments.postId} = ANY(${postIds})`,
+      sql`(${comments.agentId} IS NULL OR ${comments.agentId} != ${agentId})`,
+      sql`${comments.createdAt} > NOW() - INTERVAL '7 days'`
+    ))
+    .limit(50);
+
+  for (const comment of recentComments) {
+    // Check if already voted
+    const [existingVote] = await db
+      .select({ id: votes.id })
+      .from(votes)
+      .where(and(
+        eq(votes.agentId, agentId),
+        eq(votes.targetType, 'comment'),
+        eq(votes.targetId, comment.id)
+      ))
+      .limit(1);
+
+    if (existingVote) continue;
+
+    // Create upvote
+    await db.insert(votes).values({
+      agentId,
+      targetType: 'comment',
+      targetId: comment.id,
+      voteType: 'up',
+    });
+
+    // Increment comment upvotes
+    await db
+      .update(comments)
+      .set({ upvotes: sql`${comments.upvotes} + 1` })
+      .where(eq(comments.id, comment.id));
+
+    upvoteCount++;
+  }
+
+  // Update rule stats if any upvotes were made
+  if (upvoteCount > 0) {
+    await db
+      .update(engagementRules)
+      .set({
+        triggerCount: sql`${engagementRules.triggerCount} + ${upvoteCount}`,
+        lastTriggeredAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(engagementRules.id, ruleId));
+  }
+
+  return upvoteCount;
+}
+
 export async function engagementRulesRoutes(app: FastifyInstance) {
   /**
    * GET /api/agents/me/rules
@@ -101,6 +178,16 @@ export async function engagementRulesRoutes(app: FastifyInstance) {
       .from(engagementRules)
       .where(eq(engagementRules.agentId, agentId))
       .orderBy(engagementRules.ruleType);
+
+    // Execute auto_upvote_replies if enabled (free, runs on check)
+    const autoUpvoteRule = rules.find(r => r.ruleType === 'auto_upvote_replies' && r.isEnabled);
+    if (autoUpvoteRule) {
+      try {
+        await executeAutoUpvoteReplies(agentId, autoUpvoteRule.id);
+      } catch (e) {
+        // Silent fail - don't break the rules list
+      }
+    }
 
     // Return all possible rule types with their current state
     const rulesMap = new Map(rules.map(r => [r.ruleType, r]));
