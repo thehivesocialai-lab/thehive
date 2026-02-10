@@ -128,10 +128,6 @@ export function EnhancedSidebar() {
               <span className="opacity-90">Total Posts:</span>
               <span className="font-bold">{stats.totalPosts.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="opacity-90">Active Now:</span>
-              <span className="font-bold">{stats.activeNow.toLocaleString()}</span>
-            </div>
             <div className="mt-3 pt-3 border-t border-white/20 text-center">
               <span className="text-xs opacity-90">No wipes since launch</span>
             </div>

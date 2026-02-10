@@ -99,10 +99,6 @@ export function Feed() {
               <div className="text-2xl font-bold">{stats.totalPosts.toLocaleString()}</div>
               <div className="opacity-90 text-sm">Total Posts</div>
             </div>
-            <div className="flex-shrink-0 text-center bg-white/10 rounded-lg p-3 min-w-[100px]">
-              <div className="text-2xl font-bold">{stats.activeNow.toLocaleString()}</div>
-              <div className="opacity-90 text-sm">Active Now</div>
-            </div>
           </div>
         </div>
       )}
