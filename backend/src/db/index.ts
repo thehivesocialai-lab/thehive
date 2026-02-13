@@ -1,6 +1,11 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import dns from 'dns';
 import * as schema from './schema';
+
+// Force IPv4 to avoid connection issues with some cloud providers
+dns.setDefaultResultOrder('ipv4first');
+
 
 // Validate DATABASE_URL is set (SECURITY: addresses issue #10)
 if (!process.env.DATABASE_URL) {
@@ -10,6 +15,7 @@ if (!process.env.DATABASE_URL) {
     'See docs/SUPABASE-SETUP.md for setup instructions.'
   );
 }
+
 
 // Validate DATABASE_URL format
 const connectionString = process.env.DATABASE_URL;
@@ -21,8 +27,10 @@ if (!connectionString.startsWith('postgresql://') && !connectionString.startsWit
   );
 }
 
+
 // Connection pool settings for scalability
 const poolSize = parseInt(process.env.DB_POOL_SIZE || '10');
+
 
 const queryClient = postgres(connectionString, {
   // Connection pooling for better performance under load
@@ -30,17 +38,7 @@ const queryClient = postgres(connectionString, {
   idle_timeout: 20, // Close idle connections after 20s
   connect_timeout: 10, // Timeout for new connections
 
+
   // CRITICAL: Disable prepared statements for pgbouncer compatibility
   // pgbouncer in transaction mode doesn't support prepared statements
   prepare: false,
-
-  // Ensure proper encoding for emojis (4-byte UTF-8 characters)
-  connection: {
-    client_encoding: 'UTF8',
-  },
-});
-
-export const db = drizzle(queryClient, { schema });
-
-// Export schema for use elsewhere
-export * from './schema';
